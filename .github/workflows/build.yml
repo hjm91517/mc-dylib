@@ -1,11 +1,36 @@
-export ARCHS = arm64 arm64e
-export TARGET = iphone:clang:latest:14.0
+name: Build MCPlugin Dylib
 
-include $(THEOS)/makefiles/common.mk
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-TWEAK_NAME = MCPlugin
-MCPlugin_FILES = Tweak.xm
-MCPlugin_CFLAGS = -fobjc-arc
-MCPlugin_FRAMEWORKS = Foundation UIKit AVFoundation MediaPlayer QuartzCore
+jobs:
+  build:
+    runs-on: macos-14
 
-include $(THEOS_MAKE_PATH)/tweak.mk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies & Theos
+        run: |
+          brew install ldid xz
+          export THEOS=$HOME/theos
+          git clone --depth=1 https://github.com/theos/theos.git $THEOS
+          rm -rf $THEOS/sdks
+          git clone --depth=1 https://github.com/theos/sdks.git $THEOS/sdks
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          echo "$HOME/theos/bin" >> $GITHUB_PATH
+
+      - name: Build Dylib
+        run: |
+          export THEOS=$HOME/theos
+          export PATH=$HOME/theos/bin:$PATH
+          make package FINALPACKAGE=1
+
+      - name: Upload Dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: dylib-output
+          path: .theos/obj/*.dylib
