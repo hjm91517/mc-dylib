@@ -6,6 +6,6 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = MCPlugin
 MCPlugin_FILES = Tweak.xm fishhook/fishhook.c
 MCPlugin_CFLAGS = -fobjc-arc -I./fishhook -Wno-unused-function
-MCPlugin_FRAMEWORKS = Foundation UIKit AVFoundation
+MCPlugin_FRAMEWORKS = Foundation UIKit AVFoundation WebKit
 
 include $(THEOS_MAKE_PATH)/tweak.mk
