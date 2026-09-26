@@ -2,7 +2,7 @@ Package: com.yourname.mcplugin
 Name: MCPlugin
 Version: 1.0.0
 Architecture: iphoneos-arm
-Description: Minecraft 网易云音乐播放器
+Description: Minecraft 网易云音乐 WebView 播放器
 Maintainer: yourname
 Author: yourname
 Section: Tweaks
