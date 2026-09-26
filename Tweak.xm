@@ -1,12 +1,37 @@
 // Tweak.xm - Minecraft 网易云 WebView 播放器
-// 悬浮球可拖动，窗口可拖动、可缩放
+// 悬浮球可拖动，窗口可拖动、可缩放，非交互区域触摸穿透
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <WebKit/WebKit.h>
 
+// ============================================================
+// 穿透视图：只有当触摸点在某子视图上时才拦截
+// ============================================================
+@interface MCPassThroughView : UIView
+@end
+
+@implementation MCPassThroughView
+
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
+    for (UIView *sub in self.subviews) {
+        if (sub.hidden || sub.alpha < 0.01) continue;
+        CGPoint p = [sub convertPoint:point fromView:self];
+        if ([sub pointInside:p withEvent:event]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+@end
+
+// ============================================================
+// 全局变量
+// ============================================================
 static UIWindow *gWin = nil;
+static MCPassThroughView *gRootView = nil;
 static UIButton *gBall = nil;
 static UIView *gPanel = nil;
 static UIView *gTitleBar = nil;
@@ -28,7 +53,6 @@ static BOOL gUILoaded = NO;
     CGPoint c = ball.center;
     c.x += t.x;
     c.y += t.y;
-    // 限制在屏幕内
     CGRect bounds = ball.superview.bounds;
     CGFloat r = ball.frame.size.width / 2;
     c.x = MAX(r, MIN(bounds.size.width - r, c.x));
@@ -49,7 +73,6 @@ static BOOL gUILoaded = NO;
     CGPoint c = win.center;
     c.x += t.x;
     c.y += t.y;
-    // 至少保留 80 像素可见
     CGRect b = win.superview.bounds;
     CGFloat w2 = win.frame.size.width / 2;
     CGFloat h2 = win.frame.size.height / 2;
@@ -149,18 +172,15 @@ static UIImage *makeBallIcon(CGFloat s) {
         CGContextSetLineWidth(c, 2.4);
         CGContextSetLineCap(c, kCGLineCapRound);
         CGFloat w = s, h = s;
-        // 竖线
         CGContextMoveToPoint(c, w * 0.62, h * 0.22);
         CGContextAddLineToPoint(c, w * 0.62, h * 0.70);
         CGContextStrokePath(c);
-        // 旗帜
         CGContextMoveToPoint(c, w * 0.62, h * 0.22);
         CGContextAddLineToPoint(c, w * 0.82, h * 0.30);
         CGContextAddLineToPoint(c, w * 0.82, h * 0.44);
         CGContextAddLineToPoint(c, w * 0.62, h * 0.36);
         CGContextClosePath(c);
         CGContextFillPath(c);
-        // 音符底
         CGContextFillEllipseInRect(c, CGRectMake(w * 0.30, h * 0.62, w * 0.32, w * 0.26));
     }];
 }
@@ -212,10 +232,16 @@ static void buildUI(void) {
     gWin = [[UIWindow alloc] initWithFrame:screen];
     gWin.windowLevel = UIWindowLevelAlert + 100;
     gWin.backgroundColor = [UIColor clearColor];
+    // 关键：不要用 makeKeyAndVisible，避免抢走游戏的 key window
+    gWin.hidden = NO;
+
+    // 关键：根视图使用穿透视图，非交互区域全部透传
+    gRootView = [[MCPassThroughView alloc] initWithFrame:screen];
+    gRootView.backgroundColor = [UIColor clearColor];
+    gRootView.userInteractionEnabled = YES;
     UIViewController *vc = [[UIViewController alloc] init];
-    vc.view.backgroundColor = [UIColor clearColor];
+    vc.view = gRootView;
     gWin.rootViewController = vc;
-    [gWin makeKeyAndVisible];
 
     // ===== 悬浮球 =====
     CGFloat bs = 56;
@@ -233,7 +259,7 @@ static void buildUI(void) {
     gBall.layer.shadowOffset = CGSizeMake(0, 4);
     [gBall setImage:makeBallIcon(30) forState:UIControlStateNormal];
     [gBall addTarget:gHandler action:@selector(togglePanel) forControlEvents:UIControlEventTouchUpInside];
-    [vc.view addSubview:gBall];
+    [gRootView addSubview:gBall];
 
     UIPanGestureRecognizer *ballPan = [[UIPanGestureRecognizer alloc] initWithTarget:gHandler action:@selector(dragBall:)];
     [gBall addGestureRecognizer:ballPan];
@@ -256,7 +282,7 @@ static void buildUI(void) {
     gPanel.hidden = YES;
     gPanel.alpha = 0;
     gPanel.tag = 1000;
-    [vc.view addSubview:gPanel];
+    [gRootView addSubview:gPanel];
 
     // ===== 标题栏 =====
     gTitleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, panelFrame.size.width, 44)];
