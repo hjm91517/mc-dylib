@@ -13,22 +13,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Clean and Install Theos
+      - name: Install Dependencies
         run: |
-          export THEOS=$GITHUB_WORKSPACE/theos
-          # 强制清除任何可能存在的残留冲突文件
+          brew install ldid xz
+
+      - name: Install Theos
+        run: |
+          export THEOS=$HOME/theos
           rm -rf $THEOS
-          rm -rf $GITHUB_WORKSPACE/sdks
-          # 克隆主仓库（不加 --recursive 避免子模块报错）
-          git clone --depth=1 https://github.com/theos/theos.git $THEOS
-          # 单独克隆 SDK 到指定目录
+          # 必须加 --recursive，拉取 logos 等编译子模块
+          git clone --recursive https://github.com/theos/theos.git $THEOS
+          rm -rf $THEOS/sdks
           git clone --depth=1 https://github.com/theos/sdks.git $THEOS/sdks
-          # 写入环境变量
           echo "THEOS=$THEOS" >> $GITHUB_ENV
           echo "$THEOS/bin" >> $GITHUB_PATH
 
       - name: Build Dylib
-        run: make package FINALPACKAGE=1
+        run: |
+          export THEOS=$HOME/theos
+          export PATH=$THEOS/bin:$PATH
+          make package FINALPACKAGE=1
 
       - name: Upload Dylib
         uses: actions/upload-artifact@v4
