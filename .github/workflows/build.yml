@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: macos-14
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +23,7 @@ jobs:
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
           echo "$HOME/theos/bin" >> $GITHUB_PATH
 
-      - name: Build Dylib Only
+      - name: Build Dylib
         run: |
           export THEOS=$HOME/theos
           export PATH=$HOME/theos/bin:$PATH
