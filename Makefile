@@ -6,6 +6,6 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = MCPlugin
 MCPlugin_FILES = Tweak.xm
 MCPlugin_CFLAGS = -fobjc-arc
-MCPlugin_FRAMEWORKS = Foundation UIKit AVFoundation MediaPlayer QuartzCore
+MCPlugin_FRAMEWORKS = Foundation UIKit AVFoundation WebKit
 
 include $(THEOS_MAKE_PATH)/tweak.mk
