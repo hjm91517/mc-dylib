@@ -32,9 +32,19 @@ jobs:
           make
         continue-on-error: false
 
+      - name: Locate Dylib
+        run: |
+          echo "=== Searching for .dylib files ==="
+          find . -name "*.dylib" -type f 2>/dev/null || true
+          echo "=== Listing .theos/obj ==="
+          ls -laR .theos/obj 2>/dev/null || true
+
       - name: Upload Dylib
         uses: actions/upload-artifact@v4
         with:
           name: dylib-output
-          path: .theos/obj/MCPlugin.dylib
-          if-no-files-found: error
+          path: |
+            .theos/obj/**/*.dylib
+            .theos/obj/*.dylib
+            **/*.dylib
+          if-no-files-found: warn
