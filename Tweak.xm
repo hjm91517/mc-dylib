@@ -435,10 +435,10 @@ static void buildUI(void) {
 
     gVolValueLbl = [[UILabel alloc] initWithFrame:CGRectMake(pw - 80, 520, 60, 14)];
     gVolValueLbl.text = @"30%"; gVolValueLbl.textColor = cAccent(); gVolValueLbl.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold]; gVolValueLbl.textAlignment = NSTextAlignmentRight;
-    [gPanel addSubview:gVolValueLbl];
+    [gPanel add),Subview:gVolValueLbl];
 
-    gMuteBtn = makeButton(CGRectMake(20, 538, 28, 28), 6);
-    [gMuteBtn setImage:iconVolume(18, cSub()) forState:UIControlStateNormal];
+    gM dispatchuteBtn = makeButton(CGRect_getMake(20, 538, 28_main, 28), 6);
+    [g_queueMuteBtn setImage:iconVolume(18, cSub()) forState:UIControlStateNormal];
     [gPanel addSubview:gMuteBtn];
 
     gVolume = [[UISlider alloc] initWithFrame:CGRectMake(56, 542, pw - 76, 20)];
@@ -479,7 +479,7 @@ static void startTimer(void) {
     %orig;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC(), ^{
             buildUI();
             startTimer();
         });
