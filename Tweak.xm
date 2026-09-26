@@ -1,5 +1,5 @@
 // Tweak.xm - Minecraft 网易云 WebView 播放器
-// 悬浮球可拖动，窗口可拖动、可缩放，非交互区域触摸穿透
+// 直接挂载到游戏 keyWindow，不新建 UIWindow
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -7,31 +7,9 @@
 #import <WebKit/WebKit.h>
 
 // ============================================================
-// 穿透视图：只有当触摸点在某子视图上时才拦截
-// ============================================================
-@interface MCPassThroughView : UIView
-@end
-
-@implementation MCPassThroughView
-
-- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
-    for (UIView *sub in self.subviews) {
-        if (sub.hidden || sub.alpha < 0.01) continue;
-        CGPoint p = [sub convertPoint:point fromView:self];
-        if ([sub pointInside:p withEvent:event]) {
-            return YES;
-        }
-    }
-    return NO;
-}
-
-@end
-
-// ============================================================
 // 全局变量
 // ============================================================
-static UIWindow *gWin = nil;
-static MCPassThroughView *gRootView = nil;
+static UIWindow *gHostWindow = nil;
 static UIButton *gBall = nil;
 static UIView *gPanel = nil;
 static UIView *gTitleBar = nil;
@@ -218,32 +196,43 @@ static UIImage *makeResizeIcon(CGFloat s, UIColor *col) {
 }
 
 // ============================================================
-// UI 构建
+// UI 构建：直接挂到游戏的 keyWindow 上
 // ============================================================
+static UIWindow *findGameKeyWindow(void) {
+    // 优先找 keyWindow
+    for (UIWindow *w in [UIApplication sharedApplication].windows) {
+        if (w.isKeyWindow && w.windowLevel < UIWindowLevelAlert) return w;
+    }
+    // 退而求其次，找主窗口
+    for (UIWindow *w in [UIApplication sharedApplication].windows) {
+        if (w.windowLevel == UIWindowLevelNormal) return w;
+    }
+    // 最后兜底
+    return [UIApplication sharedApplication].keyWindow;
+}
+
 static void buildUI(void) {
     if (gUILoaded) return;
+    if (gHostWindow) return;
+
+    UIWindow *host = findGameKeyWindow();
+    if (!host) {
+        // 没找到，延迟重试
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+            buildUI();
+        });
+        return;
+    }
+
     gUILoaded = YES;
+    gHostWindow = host;
     gHandler = [[MCHandler alloc] init];
 
     CGRect screen = [UIScreen mainScreen].bounds;
     CGFloat sw = screen.size.width;
     CGFloat sh = screen.size.height;
 
-    gWin = [[UIWindow alloc] initWithFrame:screen];
-    gWin.windowLevel = UIWindowLevelAlert + 100;
-    gWin.backgroundColor = [UIColor clearColor];
-    // 关键：不要用 makeKeyAndVisible，避免抢走游戏的 key window
-    gWin.hidden = NO;
-
-    // 关键：根视图使用穿透视图，非交互区域全部透传
-    gRootView = [[MCPassThroughView alloc] initWithFrame:screen];
-    gRootView.backgroundColor = [UIColor clearColor];
-    gRootView.userInteractionEnabled = YES;
-    UIViewController *vc = [[UIViewController alloc] init];
-    vc.view = gRootView;
-    gWin.rootViewController = vc;
-
-    // ===== 悬浮球 =====
+    // ===== 悬浮球（直接加到游戏窗口）=====
     CGFloat bs = 56;
     CGPoint ballCenter = CGPointMake(sw - bs / 2 - 16, sh * 0.4);
     NSString *savedCenter = [[NSUserDefaults standardUserDefaults] stringForKey:@"MCBallCenter"];
@@ -259,7 +248,7 @@ static void buildUI(void) {
     gBall.layer.shadowOffset = CGSizeMake(0, 4);
     [gBall setImage:makeBallIcon(30) forState:UIControlStateNormal];
     [gBall addTarget:gHandler action:@selector(togglePanel) forControlEvents:UIControlEventTouchUpInside];
-    [gRootView addSubview:gBall];
+    [host addSubview:gBall];
 
     UIPanGestureRecognizer *ballPan = [[UIPanGestureRecognizer alloc] initWithTarget:gHandler action:@selector(dragBall:)];
     [gBall addGestureRecognizer:ballPan];
@@ -282,7 +271,7 @@ static void buildUI(void) {
     gPanel.hidden = YES;
     gPanel.alpha = 0;
     gPanel.tag = 1000;
-    [gRootView addSubview:gPanel];
+    [host addSubview:gPanel];
 
     // ===== 标题栏 =====
     gTitleBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, panelFrame.size.width, 44)];
@@ -345,15 +334,15 @@ static void buildUI(void) {
                                            error:&err];
     [[AVAudioSession sharedInstance] setActive:YES error:&err];
 
-    NSLog(@"[MCPlugin] UI 就绪");
+    NSLog(@"[MCPlugin] UI 已挂载到游戏窗口");
 }
 
 // ============================================================
-// 入口
+// 入口：等游戏窗口就绪后挂载
 // ============================================================
 %ctor {
     NSLog(@"[MCPlugin] 加载");
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         buildUI();
     });
 }
