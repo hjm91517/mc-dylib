@@ -1,40 +1,28 @@
-name: Build Minecraft Dylib
+name: Build Melodify Dylib
 
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
 
-env:
-  THEOS: ${{ github.workspace }}/theos
-
 jobs:
   build:
     runs-on: macos-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build tools
-        run: |
-          brew install dpkg ldid
-
       - name: Install Theos
-        run: |
-          git clone --recursive https://github.com/theos/theos.git $THEOS
-          mkdir -p $THEOS/sdks
-          cd $THEOS/sdks
-          curl -L -o sdks.zip https://github.com/theos/sdks/archive/master.zip
-          unzip -q sdks.zip
-          mv sdks-master/*.sdk .
-          rm -rf sdks-master sdks.zip
-          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+        uses: Randomblock1/theos-action@v1
+        with:
+          theos-dir: 'theos'
 
       - name: Build Dylib
         run: |
-          echo "THEOS=$THEOS"
+          export THEOS=$GITHUB_WORKSPACE/theos
           make package FINALPACKAGE=1
+        env:
+          THEOS: ${{ github.workspace }}/theos
 
       - name: Upload Dylib
         uses: actions/upload-artifact@v4
