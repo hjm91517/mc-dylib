@@ -17,20 +17,24 @@ jobs:
         run: |
           brew install ldid xz
           export THEOS=$HOME/theos
-          git clone --depth=1 https://github.com/theos/theos.git $THEOS
+          rm -rf $THEOS
+          git clone --recursive https://github.com/theos/theos.git $THEOS
           rm -rf $THEOS/sdks
           git clone --depth=1 https://github.com/theos/sdks.git $THEOS/sdks
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
           echo "$HOME/theos/bin" >> $GITHUB_PATH
 
-      - name: Build Dylib
+      - name: Build Dylib Only
         run: |
           export THEOS=$HOME/theos
           export PATH=$HOME/theos/bin:$PATH
-          make package FINALPACKAGE=1
+          make clean || true
+          make
+        continue-on-error: false
 
       - name: Upload Dylib
         uses: actions/upload-artifact@v4
         with:
           name: dylib-output
-          path: .theos/obj/*.dylib
+          path: .theos/obj/MCPlugin.dylib
+          if-no-files-found: error
