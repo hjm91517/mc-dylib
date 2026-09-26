@@ -13,12 +13,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Theos
+      - name: Clean and Install Theos
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          git clone --depth=1 --recursive https://github.com/theos/theos.git $THEOS
-          rm -rf $THEOS/sdks
+          # 强制清除任何可能存在的残留冲突文件
+          rm -rf $THEOS
+          rm -rf $GITHUB_WORKSPACE/sdks
+          # 克隆主仓库（不加 --recursive 避免子模块报错）
+          git clone --depth=1 https://github.com/theos/theos.git $THEOS
+          # 单独克隆 SDK 到指定目录
           git clone --depth=1 https://github.com/theos/sdks.git $THEOS/sdks
+          # 写入环境变量
           echo "THEOS=$THEOS" >> $GITHUB_ENV
           echo "$THEOS/bin" >> $GITHUB_PATH
 
