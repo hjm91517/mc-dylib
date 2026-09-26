@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main ]
 
+env:
+  THEOS: /opt/theos
+
 jobs:
   build:
     runs-on: macos-latest
@@ -13,17 +16,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install build tools
+        run: |
+          brew install dpkg ldid
+
       - name: Install Theos
-        uses: Randomblock1/theos-action@v1
-        with:
-          theos-dir: 'theos'
+        run: |
+          git clone --recursive https://github.com/theos/theos.git $THEOS
+          mkdir -p $THEOS/sdks
+          cd $THEOS/sdks
+          curl -L -o sdks.zip https://github.com/theos/sdks/archive/master.zip
+          unzip -q sdks.zip
+          mv sdks-master/*.sdk .
+          rm -rf sdks-master sdks.zip
+          xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Build Dylib
         run: |
-          export THEOS=$GITHUB_WORKSPACE/theos
+          echo "THEOS=$THEOS"
           make package FINALPACKAGE=1
-        env:
-          THEOS: ${{ github.workspace }}/theos
 
       - name: Upload Dylib
         uses: actions/upload-artifact@v4
