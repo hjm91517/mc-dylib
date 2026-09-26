@@ -196,28 +196,39 @@ static UIImage *makeResizeIcon(CGFloat s, UIColor *col) {
 }
 
 // ============================================================
-// UI 构建：直接挂到游戏的 keyWindow 上
+// 寻找游戏 keyWindow（不使用已废弃的 .keyWindow）
 // ============================================================
 static UIWindow *findGameKeyWindow(void) {
-    // 优先找 keyWindow
-    for (UIWindow *w in [UIApplication sharedApplication].windows) {
-        if (w.isKeyWindow && w.windowLevel < UIWindowLevelAlert) return w;
+    NSArray *windows = [UIApplication sharedApplication].windows;
+
+    // 优先找 isKeyWindow 且非系统弹窗层
+    for (UIWindow *w in windows) {
+        if (w.isKeyWindow && w.windowLevel < UIWindowLevelAlert) {
+            return w;
+        }
     }
-    // 退而求其次，找主窗口
-    for (UIWindow *w in [UIApplication sharedApplication].windows) {
-        if (w.windowLevel == UIWindowLevelNormal) return w;
+    // 其次找正常层级的窗口
+    for (UIWindow *w in windows) {
+        if (w.windowLevel == UIWindowLevelNormal) {
+            return w;
+        }
     }
-    // 最后兜底
-    return [UIApplication sharedApplication].keyWindow;
+    // 最后返回第一个窗口
+    if (windows.count > 0) {
+        return windows.firstObject;
+    }
+    return nil;
 }
 
+// ============================================================
+// UI 构建
+// ============================================================
 static void buildUI(void) {
     if (gUILoaded) return;
     if (gHostWindow) return;
 
     UIWindow *host = findGameKeyWindow();
     if (!host) {
-        // 没找到，延迟重试
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             buildUI();
         });
@@ -232,7 +243,7 @@ static void buildUI(void) {
     CGFloat sw = screen.size.width;
     CGFloat sh = screen.size.height;
 
-    // ===== 悬浮球（直接加到游戏窗口）=====
+    // ===== 悬浮球 =====
     CGFloat bs = 56;
     CGPoint ballCenter = CGPointMake(sw - bs / 2 - 16, sh * 0.4);
     NSString *savedCenter = [[NSUserDefaults standardUserDefaults] stringForKey:@"MCBallCenter"];
@@ -338,7 +349,7 @@ static void buildUI(void) {
 }
 
 // ============================================================
-// 入口：等游戏窗口就绪后挂载
+// 入口
 // ============================================================
 %ctor {
     NSLog(@"[MCPlugin] 加载");
