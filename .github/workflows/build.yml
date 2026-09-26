@@ -24,18 +24,16 @@ jobs:
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
           echo "$HOME/theos/bin" >> $GITHUB_PATH
 
-      - name: Build and Package
+      - name: Build Dylib Only
         run: |
           export THEOS=$HOME/theos
           export PATH=$HOME/theos/bin:$PATH
           make clean || true
-          make package FINALPACKAGE=1
+          make
 
-      - name: Upload All Outputs
+      - name: Upload Dylib
         uses: actions/upload-artifact@v4
         with:
-          name: all-outputs
-          path: |
-            .theos/obj/
-            packages/
-          if-no-files-found: warn
+          name: MCPlugin-dylib
+          path: .theos/obj/**/MCPlugin.dylib
+          if-no-files-found: error
