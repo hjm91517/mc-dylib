@@ -1,8 +1,8 @@
-Package: com.yourname.mcplugin
-Name: MCPlugin
+Package: com.yourname.melodify
+Name: Melodify
 Version: 1.0.0
 Architecture: iphoneos-arm
-Description: Minecraft Bedrock 辅助插件 - 网易云音乐播放（音量可控）、材质注入
+Description: Minecraft Bedrock 内置独立音量音乐播放器
 Maintainer: yourname
 Author: yourname
 Section: Tweaks
