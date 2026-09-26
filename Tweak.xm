@@ -1,4 +1,6 @@
 // Tweak.xm - Minecraft 独立音量音乐播放器
+// 全手绘 UI，无 Emoji，无 fishhook，无材质注入
+
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
@@ -62,14 +64,17 @@ static UIImage *iconPlay(CGFloat s, UIColor *color) {
 static UIImage *iconPause(CGFloat s, UIColor *color) {
     return drawIcon(CGSizeMake(s, s), color, 0, ^(CGContextRef c, CGRect r) {
         CGFloat w = r.size.width, h = r.size.height;
-        [UIBezierPath bezierPathWithRoundedRect:CGRectMake(w*0.28, h*0.20, w*0.14, h*0.60) cornerRadius:w*0.06].fill;
-        [UIBezierPath bezierPathWithRoundedRect:CGRectMake(w*0.58, h*0.20, w*0.14, h*0.60) cornerRadius:w*0.06].fill;
+        UIBezierPath *p1 = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(w*0.28, h*0.20, w*0.14, h*0.60) cornerRadius:w*0.06];
+        UIBezierPath *p2 = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(w*0.58, h*0.20, w*0.14, h*0.60) cornerRadius:w*0.06];
+        [p1 fill];
+        [p2 fill];
     });
 }
 static UIImage *iconPrev(CGFloat s, UIColor *color) {
     return drawIcon(CGSizeMake(s, s), color, 0, ^(CGContextRef c, CGRect r) {
         CGFloat w = r.size.width, h = r.size.height;
-        [UIBezierPath bezierPathWithRoundedRect:CGRectMake(w*0.20, h*0.20, w*0.10, h*0.60) cornerRadius:w*0.05].fill;
+        UIBezierPath *bar = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(w*0.20, h*0.20, w*0.10, h*0.60) cornerRadius:w*0.05];
+        [bar fill];
         CGContextMoveToPoint(c, w*0.82, h*0.18); CGContextAddLineToPoint(c, w*0.36, h*0.50);
         CGContextAddLineToPoint(c, w*0.82, h*0.82); CGContextClosePath(c); CGContextFillPath(c);
     });
@@ -79,7 +84,8 @@ static UIImage *iconNext(CGFloat s, UIColor *color) {
         CGFloat w = r.size.width, h = r.size.height;
         CGContextMoveToPoint(c, w*0.18, h*0.18); CGContextAddLineToPoint(c, w*0.64, h*0.50);
         CGContextAddLineToPoint(c, w*0.18, h*0.82); CGContextClosePath(c); CGContextFillPath(c);
-        [UIBezierPath bezierPathWithRoundedRect:CGRectMake(w*0.70, h*0.20, w*0.10, h*0.60) cornerRadius:w*0.05].fill;
+        UIBezierPath *bar = [UIBezierPath bezierPathWithRoundedRect:CGRectMake(w*0.70, h*0.20, w*0.10, h*0.60) cornerRadius:w*0.05];
+        [bar fill];
     });
 }
 static UIImage *iconClose(CGFloat s, UIColor *color) {
