@@ -24,27 +24,18 @@ jobs:
           echo "THEOS=$HOME/theos" >> $GITHUB_ENV
           echo "$HOME/theos/bin" >> $GITHUB_PATH
 
-      - name: Build Dylib Only
+      - name: Build and Package
         run: |
           export THEOS=$HOME/theos
           export PATH=$HOME/theos/bin:$PATH
           make clean || true
-          make
-        continue-on-error: false
+          make package FINALPACKAGE=1
 
-      - name: Locate Dylib
-        run: |
-          echo "=== Searching for .dylib files ==="
-          find . -name "*.dylib" -type f 2>/dev/null || true
-          echo "=== Listing .theos/obj ==="
-          ls -laR .theos/obj 2>/dev/null || true
-
-      - name: Upload Dylib
+      - name: Upload All Outputs
         uses: actions/upload-artifact@v4
         with:
-          name: dylib-output
+          name: all-outputs
           path: |
-            .theos/obj/**/*.dylib
-            .theos/obj/*.dylib
-            **/*.dylib
+            .theos/obj/
+            packages/
           if-no-files-found: warn
