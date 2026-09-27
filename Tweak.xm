@@ -1,4 +1,5 @@
-// Tweak.xm - Minecraft 卡密验证（已查错 + 优化 UI + 对接后台状态）
+// Tweak.xm - Minecraft 卡密验证
+// 每次启动强制联网验证 + 自动填入上次卡密（删卡即失效）
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -331,6 +332,13 @@ static void buildMask(UIWindow *host) {
     gLoading.hidesWhenStopped = YES;
     [gCard addSubview:gLoading];
 
+    // 自动填入上次激活成功的卡密，用户只需点一次“激活”即可重新验证
+    NSString *savedCard = [[NSUserDefaults standardUserDefaults] stringForKey:kCardKey];
+    if (savedCard.length > 0) {
+        gInput.text = savedCard;
+        [gHandler setStatus:@"已填入上次卡密，点击激活" color:cSub()];
+    }
+
     // 键盘监听（避免遮挡输入框）
     [[NSNotificationCenter defaultCenter] addObserver:gHandler selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:gHandler selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
@@ -356,22 +364,9 @@ static void checkAndStart(void) {
     gHostWindow = host;
     gHandler = [[MCHandler alloc] init];
 
-    NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
-    NSString *savedCard = [ud stringForKey:kCardKey];
-    NSNumber *savedExpire = [ud objectForKey:kExpireKey];
-
-    BOOL localValid = NO;
-    if (savedCard && savedExpire) {
-        long long expire = [savedExpire longLongValue];
-        long long now = (long long)([[NSDate date] timeIntervalSince1970] * 1000);
-        if (expire > now) localValid = YES;
-    }
-
-    if (localValid) {
-        NSLog(@"[MCPlugin] 本地卡密有效，跳过验证");
-    } else {
-        buildMask(host);
-    }
+    // 每次启动都强制弹出验证（不再按本地缓存跳过），
+    // 防止管理员在后台删除/解绑卡密后用户仍能继续使用。
+    buildMask(host);
 }
 
 %ctor {
