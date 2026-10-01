@@ -1,15 +1,16 @@
-name: Flatten Folders to Root
+name: Unzip All and Deploy
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main ]
+    paths:
+      - '**.zip'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  flatten:
+  unzip:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,34 +18,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Move all files from subfolders to root and delete folders
+      - name: Find, unzip, delete all ZIP files
         run: |
-          ROOT="$GITHUB_WORKSPACE"
-
-          # 递归展开：只要根目录下还有子文件夹，就继续把里面的内容搬出来
-          while :; do
-            moved=0
-            for dir in "$ROOT"/*/; do
-              [ -d "$dir" ] || continue
-              name=$(basename "$dir")
-              # 跳过 .git / .github，避免破坏仓库和工作流本身
-              [ "$name" = ".git" ] && continue
-              [ "$name" = ".github" ] && continue
-
-              echo "展开：$dir"
-              shopt -s dotglob
-              mv -f "$dir"* "$ROOT"/ 2>/dev/null || true
-              shopt -u dotglob
-
-              # 删除已空的文件夹
-              rmdir "$dir" 2>/dev/null && echo "已删除：$dir"
-              moved=1
-            done
-            [ "$moved" -eq 0 ] && break
-          done
-
-          echo "---- 处理后根目录 ----"
-          ls -la "$ROOT"
+          shopt -s nullglob globstar
+          found=0
+          # 遍历仓库中所有 zip（含子目录），跳过 .git 目录
+          while IFS= read -r -d '' f; do
+            echo "解压：$f"
+            dir=$(dirname "$f")
+            unzip -o "$f" -d "$dir"
+            rm -f "$f"
+            found=1
+          done < <(find . -type f -name '*.zip' -not -path './.git/*' -print0)
+          if [ "$found" -eq 0 ]; then
+            echo "没有找到 ZIP 文件"
+            exit 0
+          fi
+          echo "---- 解压后仓库结构 ----"
+          ls -la
 
       - name: Commit and push
         run: |
@@ -54,6 +45,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "没有变化，跳过提交"
           else
-            git commit -m "chore: flatten folders to root"
+            git commit -m "chore: unzip all zip files and deploy"
             git push
           fi
