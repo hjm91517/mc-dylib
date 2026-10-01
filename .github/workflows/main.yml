@@ -1,50 +1,92 @@
-name: Unzip All and Deploy
+name: Build SLNetEaseMC Dylib
 
 on:
   push:
-    paths:
-      - '**.zip'
+    branches: [ main, master ]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  unzip:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Find, unzip, delete all ZIP files
+      # 兼容两种仓库结构：文件直接在根目录，或嵌套在 SLNetEaseMC/ 子目录里
+      - name: Fix repo layout
         run: |
-          shopt -s nullglob globstar
-          found=0
-          # 遍历仓库中所有 zip（含子目录），跳过 .git 目录
-          while IFS= read -r -d '' f; do
-            echo "解压：$f"
-            dir=$(dirname "$f")
-            unzip -o "$f" -d "$dir"
-            rm -f "$f"
-            found=1
-          done < <(find . -type f -name '*.zip' -not -path './.git/*' -print0)
-          if [ "$found" -eq 0 ]; then
-            echo "没有找到 ZIP 文件"
-            exit 0
+          set -euo pipefail
+          if [ ! -f Makefile ] && [ -f SLNetEaseMC/Makefile ]; then
+            echo "检测到文件嵌套在 SLNetEaseMC/ 子目录，移动到根目录"
+            shopt -s dotglob
+            mv SLNetEaseMC/* .
+            rmdir SLNetEaseMC
           fi
-          echo "---- 解压后仓库结构 ----"
           ls -la
 
-      - name: Commit and push
+      # 不再使用第三方 theos-action（已失修，Get SDKs 阶段会报 theos/sdks is not a directory）
+      - name: Install Theos
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "没有变化，跳过提交"
-          else
-            git commit -m "chore: unzip all zip files and deploy"
-            git push
+          set -euo pipefail
+          git clone --recursive --depth 1 https://github.com/theos/theos.git "$GITHUB_WORKSPACE/theos"
+          mkdir -p "$GITHUB_WORKSPACE/theos/sdks"
+          curl -fL -o sdks.zip https://codeload.github.com/theos/sdks/zip/refs/heads/master
+          unzip -q sdks.zip
+          cp -R sdks-master/*.sdk "$GITHUB_WORKSPACE/theos/sdks/"
+          ls "$GITHUB_WORKSPACE/theos/sdks"
+
+      # 直接下载 BeeWare 预编译的 iOS Python，无需 ./configure 源码编译
+      - name: Download Python-Apple-support
+        run: |
+          set -euo pipefail
+          # 优先用 GitHub API 取最新 iOS 资产；API 限流/失败则回退到固定版本
+          URL=$(curl -sf https://api.github.com/repos/beeware/Python-Apple-support/releases/latest \
+            | python3 -c "import sys,json;assets=json.load(sys.stdin).get('assets',[]);print(next((a['browser_download_url'] for a in assets if 'iOS' in a['name']), ''))" \
+            || true)
+          if [ -z "$URL" ]; then
+            URL="https://github.com/beeware/Python-Apple-support/releases/download/3.11-b5/Python-3.11-iOS-support.b5.tar.gz"
           fi
+          echo "Downloading: $URL"
+          curl -fL "$URL" -o py.tar.gz
+          # 校验下载到的是真压缩包而不是 404 HTML 页
+          file py.tar.gz
+          mkdir -p python-support
+          tar -xzf py.tar.gz -C python-support
+          XC=$(find python-support -maxdepth 3 -name "Python.xcframework" | head -1)
+          if [ -z "$XC" ]; then
+            echo "::error::未找到 Python.xcframework，解压结果如下："
+            ls -la python-support
+            exit 1
+          fi
+          echo "PYXC=$XC" >> "$GITHUB_ENV"
+          ls "$XC"
+
+      - name: Build dylib
+        run: |
+          set -euo pipefail
+          export THEOS=${{ github.workspace }}/theos
+          export PYTHON_FRAMEWORK=${{ github.workspace }}/${{ env.PYXC }}/ios-arm64/Python.framework
+          ls "$PYTHON_FRAMEWORK/Headers" | head -5
+          make FINALPACKAGE=1 DEBUG=0
+
+      - name: Package zip
+        run: |
+          set -euo pipefail
+          DYLIB=$(find .theos/obj -name "SLNetEaseMC.dylib" | head -1)
+          echo "dylib: $DYLIB"
+          mkdir -p dist/SLNetEaseMC
+          cp "$DYLIB" dist/SLNetEaseMC/
+          cp -R resources dist/SLNetEaseMC/
+          PYFW="${{ github.workspace }}/${{ env.PYXC }}/ios-arm64/Python.framework"
+          if [ -d "$PYFW" ]; then
+            mkdir -p dist/SLNetEaseMC/Frameworks
+            cp -R "$PYFW" dist/SLNetEaseMC/Frameworks/
+          fi
+          cd dist && zip -q -r SLNetEaseMC.zip SLNetEaseMC
+          ls -la SLNetEaseMC.zip
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SLNetEaseMC
+          path: dist/SLNetEaseMC.zip
