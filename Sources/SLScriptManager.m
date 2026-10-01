@@ -1,108 +1,94 @@
-#import "SLPythonBridge.h"
-#import <Python/Python.h>
-#import <UIKit/UIKit.h>
-#import "SLLogManager.h"
+#import "SLScriptManager.h"
 
-static PyObject *py_sl_alert(PyObject *self, PyObject *args) {
-    const char *msg = NULL;
-    if (!PyArg_ParseTuple(args, "s", &msg)) return NULL;
-    if (!msg) {
-        PyErr_SetString(PyExc_ValueError, "sl_alert requires a non-empty message");
-        return NULL;
-    }
+@interface SLScriptManager ()
+@property (nonatomic, copy, readonly) NSString *storagePath;
+@end
 
-    NSString *m = [NSString stringWithUTF8String:msg];
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *keyWindow = nil;
-        for (UIWindow *w in UIApplication.sharedApplication.windows) {
-            if (w.isKeyWindow) { keyWindow = w; break; }
-        }
-        if (!keyWindow) keyWindow = UIApplication.sharedApplication.keyWindow;
+@implementation SLScriptManager
 
-        UIViewController *root = keyWindow.rootViewController;
-        if (!root) {
-            [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"Python"
-                                     message:@"sl_alert: no root view controller available"];
-            return;
-        }
-        while (root.presentedViewController) root = root.presentedViewController;
-
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"SLNetEaseMC"
-                                                                       message:m
-                                                                preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        [root presentViewController:alert animated:YES completion:nil];
++ (instancetype)sharedInstance {
+    static SLScriptManager *instance = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        instance = [[SLScriptManager alloc] init];
     });
-    Py_RETURN_NONE;
+    return instance;
 }
 
-static PyObject *py_sl_log(PyObject *self, PyObject *args) {
-    const char *msg = NULL;
-    if (!PyArg_ParseTuple(args, "s", &msg)) return NULL;
-    if (!msg) {
-        PyErr_SetString(PyExc_ValueError, "sl_log requires a non-empty message");
-        return NULL;
-    }
-    [[SLLogManager sharedInstance] log:SLLogTypeRun feature:@"Python"
-                               message:[NSString stringWithUTF8String:msg]];
-    Py_RETURN_NONE;
+- (NSString *)storagePath {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *doc = paths.firstObject ?: NSTemporaryDirectory();
+    NSString *dir = [doc stringByAppendingPathComponent:@"SLNetEaseMC"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir
+                              withIntermediateDirectories:YES
+                                               attributes:nil
+                                                    error:nil];
+    return [dir stringByAppendingPathComponent:@"features.plist"];
 }
 
-static PyObject *py_sl_http_get(PyObject *self, PyObject *args) {
-    const char *url = NULL;
-    if (!PyArg_ParseTuple(args, "s", &url)) return NULL;
-    if (!url) {
-        PyErr_SetString(PyExc_ValueError, "sl_http_get requires a valid URL");
-        return NULL;
+- (void)saveFeatures:(NSArray<SLFeature *> *)features {
+    if (!features) return;
+    NSData *data = [NSKeyedArchiver archivedDataWithRootObject:features
+                                         requiringSecureCoding:YES
+                                                         error:nil];
+    if (data) {
+        [data writeToFile:self.storagePath atomically:YES];
+    }
+}
+
+- (NSMutableArray<SLFeature *> *)loadAllFeatures {
+    NSData *data = [NSData dataWithContentsOfFile:self.storagePath];
+    if (!data) {
+        return [NSMutableArray array];
     }
 
-    NSString *urlString = [NSString stringWithUTF8String:url];
-    NSURL *requestURL = [NSURL URLWithString:urlString];
-    if (!requestURL) {
-        PyErr_SetString(PyExc_ValueError, "sl_http_get received an invalid URL");
-        return NULL;
+    NSSet *classes = [NSSet setWithObjects:[NSArray class], [NSMutableArray class],
+                      [SLFeature class], [NSString class], [NSDictionary class],
+                      [NSMutableDictionary class], [NSNumber class], [NSDate class], nil];
+
+    NSArray *decoded = [NSKeyedUnarchiver unarchivedObjectOfClasses:classes
+                                                            fromData:data
+                                                               error:nil];
+    if (![decoded isKindOfClass:[NSArray class]]) {
+        return [NSMutableArray array];
     }
 
-    __block NSString *result = @"";
-    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession]
-        dataTaskWithURL:requestURL
-      completionHandler:^(NSData *data, NSURLResponse *resp, NSError *err) {
-        if (data) {
-            result = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
+    NSMutableArray *features = [NSMutableArray arrayWithCapacity:decoded.count];
+    for (id obj in decoded) {
+        if ([obj isKindOfClass:[SLFeature class]]) {
+            [features addObject:obj];
         }
-        if (err) {
-            [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"HTTP"
-                                     message:err.localizedDescription];
+    }
+    return features;
+}
+
+- (void)saveFeature:(SLFeature *)feature {
+    if (!feature) return;
+
+    NSMutableArray *items = [self loadAllFeatures];
+    BOOL replaced = NO;
+    for (NSUInteger i = 0; i < items.count; i++) {
+        SLFeature *item = items[i];
+        if ([item.featureId isEqualToString:feature.featureId]) {
+            items[i] = feature;
+            replaced = YES;
+            break;
         }
-        dispatch_semaphore_signal(sem);
-    }];
-    [task resume];
-    dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC));
-    return PyUnicode_FromString([result UTF8String]);
+    }
+    if (!replaced) {
+        [items addObject:feature];
+    }
+
+    [self saveFeatures:items];
 }
 
-static PyMethodDef SLMethods[] = {
-    {"sl_alert",    py_sl_alert,    METH_VARARGS, "Show an alert dialog"},
-    {"sl_log",      py_sl_log,      METH_VARARGS, "Write a log entry"},
-    {"sl_http_get", py_sl_http_get, METH_VARARGS, "HTTP GET request"},
-    {NULL, NULL, 0, NULL}
-};
+- (void)deleteFeature:(SLFeature *)feature {
+    if (!feature || !feature.featureId.length) return;
 
-static struct PyModuleDef SLModule = {
-    PyModuleDef_HEAD_INIT, "scriptloader", "SLNetEaseMC bridge", -1, SLMethods
-};
-
-@implementation SLPythonBridge
-
-+ (void)registerAll {
-    // 必须在 Py_Initialize 之后，并且持有 GIL 的线程上调用
-    // 注意：PyModule_Create 在新版本头文件中是安全的（或已移除），统一用 PyModule_Create2
-    if (&PyModule_Create2 == NULL) return;
-    PyObject *m = PyModule_Create2(&SLModule, PYTHON_API_VERSION);
-    if (!m) return;
-    PyObject *modules = PyImport_GetModuleDict();
-    PyDict_SetItemString(modules, "scriptloader", m);
-    Py_DECREF(m);
+    NSMutableArray *items = [self loadAllFeatures];
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"featureId != %@", feature.featureId];
+    NSArray *filtered = [items filteredArrayUsingPredicate:predicate];
+    [self saveFeatures:filtered];
 }
+
 @end
