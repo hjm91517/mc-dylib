@@ -27,7 +27,7 @@ static PyObject *py_sl_log(PyObject *self, PyObject *args) {
     const char *msg;
     if (!PyArg_ParseTuple(args, "s", &msg)) return NULL;
     [[SLLogManager sharedInstance] log:SLLogTypeRun feature:@"Python"
-                               message:[NSString stringWithUTF8String:msg]];
+                                message:[NSString stringWithUTF8String:msg]];
     Py_RETURN_NONE;
 }
 
@@ -64,7 +64,6 @@ static struct PyModuleDef SLModule = {
 
 + (void)registerAll {
     // 必须在 Py_Initialize 之后、持有 GIL 的线程上调用
-    if (&PyModule_Create == NULL) return;
     PyObject *m = PyModule_Create(&SLModule);
     if (!m) return;
     PyObject *modules = PyImport_GetModuleDict();
