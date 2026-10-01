@@ -38,7 +38,8 @@
     NSMutableArray *all = [self loadAllFeatures];
     BOOL found = NO;
     for (NSInteger i = 0; i < all.count; i++) {
-        if ([all[i].featureId isEqualToString:feature.featureId]) {
+        SLFeature *existing = all[i];
+        if ([existing.featureId isEqualToString:feature.featureId]) {
             all[i] = feature; found = YES; break;
         }
     }
