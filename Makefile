@@ -7,7 +7,7 @@ PYTHON_FRAMEWORK ?= /opt/Python/Python.framework
 
 include $(THEOS)/makefiles/common.mk
 
-LIBRARY_NAME = SLNetEaseMC
+LIBRARY_NAME = hjpythonzd
 
 SLNetEaseMC_FILES = \
     Sources/SLMain.m \

@@ -1,4 +1,5 @@
 #import "SLScriptManager.h"
+#import "SLConstants.h"
 
 @interface SLScriptManager ()
 @property (nonatomic, copy, readonly) NSString *storagePath;
@@ -18,7 +19,7 @@
 - (NSString *)storagePath {
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *doc = paths.firstObject ?: NSTemporaryDirectory();
-    NSString *dir = [doc stringByAppendingPathComponent:@"SLNetEaseMC"];
+    NSString *dir = [doc stringByAppendingPathComponent:kProjectFolderName];
     [[NSFileManager defaultManager] createDirectoryAtPath:dir
                               withIntermediateDirectories:YES
                                                attributes:nil

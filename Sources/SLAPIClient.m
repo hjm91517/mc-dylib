@@ -1,5 +1,6 @@
 #import "SLAPIClient.h"
 #import "SLLogManager.h"
+#import "SLConstants.h"
 
 @interface SLAPIClient ()
 @property (nonatomic, strong) NSString *configPath;
@@ -16,7 +17,7 @@
 - (instancetype)init {
     if (self = [super init]) {
         NSString *doc = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-        NSString *dir = [doc stringByAppendingPathComponent:@"SLNetEaseMC"];
+        NSString *dir = [doc stringByAppendingPathComponent:kProjectFolderName];
         [[NSFileManager defaultManager] createDirectoryAtPath:dir
                                   withIntermediateDirectories:YES attributes:nil error:nil];
         _configPath = [dir stringByAppendingPathComponent:@"ai_config.plist"];
@@ -46,7 +47,7 @@
     NSString *key = [self apiKey];
     if (!key.length) {
         if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-1
-            userInfo:@{NSLocalizedDescriptionKey: @"请先在设置中填写 API Key"}]);
+            userInfo:@{NSLocalizedDescriptionKey: @"请先在设置��填写 API Key"}]);
         return;
     }
     NSString *base = [self.baseURL stringByTrimmingCharactersInSet:
@@ -68,41 +69,40 @@
     NSDictionary *body = @{ @"model": [self model] ?: @"gpt-3.5-turbo",
                             @"messages": messages ?: @[],
                             @"temperature": @0.7 };
-    NSData *bodyData = [NSJSONSerialization dataWithJSONObject:body options:0 error:nil];
-    if (!bodyData) {
-        if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-3
-            userInfo:@{NSLocalizedDescriptionKey: @"请求体序列化失败"}]);
-        return;
-    }
-    req.HTTPBody = bodyData;
 
-    [[SLLogManager sharedInstance] log:SLLogTypeAI feature:@"Request"
-                               message:[NSString stringWithFormat:@"发送 %lu 条消息", (unsigned long)messages.count]];
+    NSData *b = [NSJSONSerialization dataWithJSONObject:body options:0 error:nil];
+    req.HTTPBody = b;
 
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession]
-        dataTaskWithRequest:req completionHandler:^(NSData *data, NSURLResponse *resp, NSError *error) {
-        if (error) {
-            [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"AI" message:error.localizedDescription];
-            if (completion) completion(nil, error);
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
+                                                                 completionHandler:^(NSData *data, NSURLResponse *resp, NSError *err) {
+        if (err) {
+            if (completion) completion(nil, err);
             return;
         }
-        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-        if (![json isKindOfClass:[NSDictionary class]] || ![json[@"choices"] isKindOfClass:NSArray.class]) {
-            NSString *s = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
-            [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"AI"
-                                       message:[NSString stringWithFormat:@"响应解析失败: %@", s]];
-            if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-4
-                userInfo:@{NSLocalizedDescriptionKey: @"响应解析失败"}]);
+        if (!data) {
+            if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-3 userInfo:@{NSLocalizedDescriptionKey:@"空响应"}]);
             return;
         }
-        id first = [json[@"choices"] firstObject];
-        NSString *reply = nil;
-        if ([first isKindOfClass:NSDictionary.class]) reply = first[@"message"][@"content"];
-        reply = reply ?: @"";
-        [[SLLogManager sharedInstance] log:SLLogTypeAI feature:@"Response"
-                                   message:[NSString stringWithFormat:@"收到 %lu 字符", (unsigned long)reply.length]];
-        if (completion) completion(reply, nil);
+        NSError *jsonErr = nil;
+        NSDictionary *obj = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonErr];
+        if (jsonErr || ![obj isKindOfClass:[NSDictionary class]]) {
+            if (completion) completion(nil, jsonErr ?: [NSError errorWithDomain:@"SLAPI" code:-4 userInfo:@{NSLocalizedDescriptionKey:@"非 JSON 响应"}]);
+            return;
+        }
+        // 兼容多种返回，先校验 choices 是数组
+        id choices = obj[@"choices"];
+        if (![choices isKindOfClass:[NSArray class]] || ((NSArray *)choices).count == 0) {
+            if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-5 userInfo:@{NSLocalizedDescriptionKey:@"未包含 choices"}]);
+            return;
+        }
+        NSDictionary *first = ((NSArray *)choices).firstObject;
+        if (![first isKindOfClass:[NSDictionary class]]) {
+            if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-6 userInfo:@{NSLocalizedDescriptionKey:@"choices 内容不合法"}]);
+            return;
+        }
+        if (completion) completion(obj, nil);
     }];
     [task resume];
 }
+
 @end
