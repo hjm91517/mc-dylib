@@ -1,0 +1,6 @@
+.theos/
+Frameworks/
+dist/
+packages/
+*.zip
+obj/
