@@ -4,44 +4,77 @@
 #import "SLLogManager.h"
 
 static PyObject *py_sl_alert(PyObject *self, PyObject *args) {
-    const char *msg;
+    const char *msg = NULL;
     if (!PyArg_ParseTuple(args, "s", &msg)) return NULL;
+    if (!msg) {
+        PyErr_SetString(PyExc_ValueError, "sl_alert requires a non-empty message");
+        return NULL;
+    }
+
     NSString *m = [NSString stringWithUTF8String:msg];
     dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *keyWindow = nil;
+        for (UIWindow *w in UIApplication.sharedApplication.windows) {
+            if (w.isKeyWindow) { keyWindow = w; break; }
+        }
+        if (!keyWindow) keyWindow = UIApplication.sharedApplication.keyWindow;
+
+        UIViewController *root = keyWindow.rootViewController;
+        if (!root) {
+            [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"Python"
+                                     message:@"sl_alert: no root view controller available"];
+            return;
+        }
+        while (root.presentedViewController) root = root.presentedViewController;
+
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"SLNetEaseMC"
                                                                        message:m
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        UIWindow *kw = nil;
-        for (UIWindow *w in UIApplication.sharedApplication.windows) {
-            if (w.isKeyWindow) { kw = w; break; }
-        }
-        UIViewController *root = kw.rootViewController;
-        while (root.presentedViewController) root = root.presentedViewController;
         [root presentViewController:alert animated:YES completion:nil];
     });
     Py_RETURN_NONE;
 }
 
 static PyObject *py_sl_log(PyObject *self, PyObject *args) {
-    const char *msg;
+    const char *msg = NULL;
     if (!PyArg_ParseTuple(args, "s", &msg)) return NULL;
+    if (!msg) {
+        PyErr_SetString(PyExc_ValueError, "sl_log requires a non-empty message");
+        return NULL;
+    }
     [[SLLogManager sharedInstance] log:SLLogTypeRun feature:@"Python"
                                message:[NSString stringWithUTF8String:msg]];
     Py_RETURN_NONE;
 }
 
 static PyObject *py_sl_http_get(PyObject *self, PyObject *args) {
-    const char *url;
+    const char *url = NULL;
     if (!PyArg_ParseTuple(args, "s", &url)) return NULL;
+    if (!url) {
+        PyErr_SetString(PyExc_ValueError, "sl_http_get requires a valid URL");
+        return NULL;
+    }
+
+    NSString *urlString = [NSString stringWithUTF8String:url];
+    NSURL *requestURL = [NSURL URLWithString:urlString];
+    if (!requestURL) {
+        PyErr_SetString(PyExc_ValueError, "sl_http_get received an invalid URL");
+        return NULL;
+    }
+
     __block NSString *result = @"";
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
     NSURLSessionDataTask *task = [[NSURLSession sharedSession]
-        dataTaskWithURL:[NSURL URLWithString:[NSString stringWithUTF8String:url]]
+        dataTaskWithURL:requestURL
       completionHandler:^(NSData *data, NSURLResponse *resp, NSError *err) {
-        if (data) result = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
-        if (err) [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"HTTP"
-                                            message:err.localizedDescription];
+        if (data) {
+            result = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
+        }
+        if (err) {
+            [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"HTTP"
+                                     message:err.localizedDescription];
+        }
         dispatch_semaphore_signal(sem);
     }];
     [task resume];
@@ -50,9 +83,9 @@ static PyObject *py_sl_http_get(PyObject *self, PyObject *args) {
 }
 
 static PyMethodDef SLMethods[] = {
-    {"sl_alert",    py_sl_alert,    METH_VARARGS, "æ¾ç¤ºå¼¹çª"},
-    {"sl_log",      py_sl_log,      METH_VARARGS, "æå°æ¥å¿"},
-    {"sl_http_get", py_sl_http_get, METH_VARARGS, "GET è¯·æ±"},
+    {"sl_alert",    py_sl_alert,    METH_VARARGS, "Show an alert dialog"},
+    {"sl_log",      py_sl_log,      METH_VARARGS, "Write a log entry"},
+    {"sl_http_get", py_sl_http_get, METH_VARARGS, "HTTP GET request"},
     {NULL, NULL, 0, NULL}
 };
 
@@ -63,8 +96,8 @@ static struct PyModuleDef SLModule = {
 @implementation SLPythonBridge
 
 + (void)registerAll {
-    // å¿é¡»å¨ Py_Initialize ä¹åãææ GIL ççº¿ç¨ä¸è°ç¨
-    // æ³¨æï¼PyModule_Create å¨æ°çå¤´æä»¶ä¸­æ¯å®ï¼æå·²ç§»é¤ï¼ï¼ç»ä¸ç¨ PyModule_Create2
+    // 必须在 Py_Initialize 之后，并且持有 GIL 的线程上调用
+    // 注意：PyModule_Create 在新版本头文件中是安全的（或已移除），统一用 PyModule_Create2
     if (&PyModule_Create2 == NULL) return;
     PyObject *m = PyModule_Create2(&SLModule, PYTHON_API_VERSION);
     if (!m) return;
