@@ -1,0 +1,50 @@
+name: Unzip All and Deploy
+
+on:
+  push:
+    paths:
+      - '**.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find, unzip, delete all ZIP files
+        run: |
+          shopt -s nullglob globstar
+          found=0
+          # 遍历仓库中所有 zip（含子目录），跳过 .git 目录
+          while IFS= read -r -d '' f; do
+            echo "解压：$f"
+            dir=$(dirname "$f")
+            unzip -o "$f" -d "$dir"
+            rm -f "$f"
+            found=1
+          done < <(find . -type f -name '*.zip' -not -path './.git/*' -print0)
+          if [ "$found" -eq 0 ]; then
+            echo "没有找到 ZIP 文件"
+            exit 0
+          fi
+          echo "---- 解压后仓库结构 ----"
+          ls -la
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "没有变化，跳过提交"
+          else
+            git commit -m "chore: unzip all zip files and deploy"
+            git push
+          fi
