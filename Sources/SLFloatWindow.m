@@ -1,7 +1,8 @@
 #import "SLFloatWindow.h"
 #import "SLMainTabVC.h"
+#import <UIKit/UIKit.h>
 
-@interface SLFloatWindow ()
+@interface SLFloatWindow () <UIAdaptivePresentationControllerDelegate>
 @property (nonatomic, strong) UIWindow *floatWindow;
 @property (nonatomic, strong) UIImageView *iconView;
 @end
@@ -20,6 +21,7 @@
     CGRect screen = [UIScreen mainScreen].bounds;
     CGFloat size = 56;
     self.floatWindow = [[UIWindow alloc] initWithFrame:CGRectMake(20, screen.size.height * 0.18, size, size)];
+    // 保持比应用界面更高的层级，便于始终在最上层显示
     self.floatWindow.windowLevel = UIWindowLevelStatusBar + 1;
     self.floatWindow.backgroundColor = [UIColor clearColor];
     self.floatWindow.rootViewController = [UIViewController new];
@@ -67,11 +69,48 @@
     [self.iconView addGestureRecognizer:pan];
 }
 
+// 获取当前应用的最顶层可用于 present 的 view controller（兼容 iOS 13 scene）
+- (UIViewController *)topMostController {
+    UIWindow *keyWindow = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *s in UIApplication.sharedApplication.connectedScenes) {
+            if (s.activationState != UISceneActivationStateForegroundActive) continue;
+            if (![s isKindOfClass:[UIWindowScene class]]) continue;
+            UIWindowScene *ws = (UIWindowScene *)s;
+            for (UIWindow *w in ws.windows) {
+                if (w.isKeyWindow) { keyWindow = w; break; }
+            }
+            if (keyWindow) break;
+        }
+    } else {
+        keyWindow = UIApplication.sharedApplication.keyWindow;
+    }
+    if (!keyWindow) {
+        keyWindow = UIApplication.sharedApplication.delegate.window ?: UIApplication.sharedApplication.windows.firstObject;
+    }
+    UIViewController *root = keyWindow.rootViewController;
+    while (root.presentedViewController) root = root.presentedViewController;
+    return root;
+}
+
 - (void)iconTapped {
-    if (self.floatWindow.rootViewController.presentedViewController) return;
+    // 防止重复打开
+    UIViewController *presenter = [self topMostController] ?: self.floatWindow.rootViewController;
+    if (presenter.presentedViewController) return;
+
     SLMainTabVC *tab = [[SLMainTabVC alloc] init];
-    tab.modalPresentationStyle = UIModalPresentationFormSheet;
-    [self.floatWindow.rootViewController presentViewController:tab animated:YES completion:nil];
+    // iPhone 上使用全屏以避免样式差异；iPad 会自动使用 form sheet
+    tab.modalPresentationStyle = UIModalPresentationFullScreen;
+    if (tab.presentationController) tab.presentationController.delegate = self;
+
+    // 在展示主面板时临时隐藏悬浮窗（避免在部分系统下被系统隐藏且无法恢复）
+    self.floatWindow.hidden = YES;
+    [presenter presentViewController:tab animated:YES completion:nil];
+}
+
+- (void)presentationControllerDidDismiss:(UIPresentationController *)presentationController {
+    // 用户通过交互或系统关闭时恢复悬浮窗
+    self.floatWindow.hidden = NO;
 }
 
 - (void)iconPanned:(UIPanGestureRecognizer *)pan {

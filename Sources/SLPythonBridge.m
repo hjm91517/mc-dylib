@@ -3,19 +3,33 @@
 #import <UIKit/UIKit.h>
 #import "SLLogManager.h"
 
+static UIWindow *keyWindowForPresent(void) {
+    UIWindow *kw = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *s in UIApplication.sharedApplication.connectedScenes) {
+            if (s.activationState != UISceneActivationStateForegroundActive) continue;
+            if (![s isKindOfClass:[UIWindowScene class]]) continue;
+            UIWindowScene *ws = (UIWindowScene *)s;
+            for (UIWindow *w in ws.windows) {
+                if (w.isKeyWindow) { kw = w; break; }
+            }
+            if (kw) break;
+        }
+    }
+    if (!kw) kw = UIApplication.sharedApplication.delegate.window ?: UIApplication.sharedApplication.windows.firstObject;
+    return kw;
+}
+
 static PyObject *py_sl_alert(PyObject *self, PyObject *args) {
     const char *msg;
     if (!PyArg_ParseTuple(args, "s", &msg)) return NULL;
     NSString *m = [NSString stringWithUTF8String:msg];
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"SLNetEaseMC"
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"hjpythonzd"
                                                                        message:m
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        UIWindow *kw = nil;
-        for (UIWindow *w in UIApplication.sharedApplication.windows) {
-            if (w.isKeyWindow) { kw = w; break; }
-        }
+        UIWindow *kw = keyWindowForPresent();
         UIViewController *root = kw.rootViewController;
         while (root.presentedViewController) root = root.presentedViewController;
         [root presentViewController:alert animated:YES completion:nil];
@@ -57,7 +71,7 @@ static PyMethodDef SLMethods[] = {
 };
 
 static struct PyModuleDef SLModule = {
-    PyModuleDef_HEAD_INIT, "scriptloader", "SLNetEaseMC bridge", -1, SLMethods
+    PyModuleDef_HEAD_INIT, "scriptloader", "hjpythonzd bridge", -1, SLMethods
 };
 
 @implementation SLPythonBridge
