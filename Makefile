@@ -1,4 +1,6 @@
-ARCHS = arm64 arm64e
+ARCHS = arm64
+# BeeWare 的 Python-Apple-support 只提供 arm64 slice；没有 arm64e slice。
+# 继续构建 arm64e 会导致 linker 找不到 PyArg_ParseTuple 等符号。
 TARGET = iphone:clang:latest:14.0
 
 PYTHON_FRAMEWORK ?= /opt/Python/Python.framework
