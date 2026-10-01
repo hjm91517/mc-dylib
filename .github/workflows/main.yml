@@ -61,6 +61,35 @@ jobs:
           echo "PYXC=$XC" >> "$GITHUB_ENV"
           ls "$XC"
 
+      - name: Install ldid
+        run: |
+          set -euo pipefail
+          if command -v ldid >/dev/null 2>&1; then
+            echo "ldid already installed: $(which ldid)"
+            ldid -v || ldid --version || true
+            exit 0
+          fi
+
+          if command -v brew >/dev/null 2>&1; then
+            brew update
+            if brew info ldid >/dev/null 2>&1; then
+              brew install ldid
+            else
+              brew tap ProcursusTeam/tools
+              brew install ldid
+            fi
+          fi
+
+          if ! command -v ldid >/dev/null 2>&1; then
+            echo "Falling back to direct ldid binary download"
+            mkdir -p /usr/local/bin
+            curl -fsSL -o /usr/local/bin/ldid https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid-macos
+            chmod +x /usr/local/bin/ldid
+          fi
+
+          echo "ldid installed at: $(which ldid)"
+          ldid -v || ldid --version || true
+
       - name: Build dylib
         run: |
           set -euo pipefail
