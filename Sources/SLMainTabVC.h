@@ -1,4 +1,4 @@
 #import <UIKit/UIKit.h>
 
-@interface SLMainTabVC : UITabBarController
+@interface SLMainTabVC : UIViewController
 @end

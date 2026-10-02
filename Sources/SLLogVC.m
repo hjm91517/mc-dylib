@@ -1,5 +1,6 @@
 #import "SLLogVC.h"
 #import "SLLogManager.h"
+#import "SLTheme.h"
 
 @interface SLLogVC () <UITableViewDelegate, UITableViewDataSource>
 @property (nonatomic, strong) UISegmentedControl *segment;
@@ -12,7 +13,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"日志";
-    self.view.backgroundColor = [UIColor systemBackgroundColor];
+    self.view.backgroundColor = SLColorBG();
 
     CGFloat W = self.view.bounds.size.width;
     CGFloat H = self.view.bounds.size.height;
@@ -20,6 +21,12 @@
     self.segment = [[UISegmentedControl alloc] initWithItems:@[@"运行", @"失败", @"崩溃", @"AI", @"系统"]];
     self.segment.selectedSegmentIndex = 0;
     self.segment.frame = CGRectMake(12, 8, W - 24, 34);
+    self.segment.selectedSegmentTintColor = SLColorAccent();
+    [self.segment setTitleTextAttributes:@{NSForegroundColorAttributeName: [UIColor whiteColor],
+                                           NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightMedium]}
+                                forState:UIControlStateSelected];
+    [self.segment setTitleTextAttributes:@{NSForegroundColorAttributeName: SLColorText2()}
+                                forState:UIControlStateNormal];
     [self.segment addTarget:self action:@selector(refresh) forControlEvents:UIControlEventValueChanged];
     [self.view addSubview:self.segment];
 
@@ -31,6 +38,8 @@
                                                   style:UITableViewStylePlain];
     self.tableView.delegate = self;
     self.tableView.dataSource = self;
+    self.tableView.backgroundColor = [UIColor clearColor];
+    self.tableView.separatorColor = SLColorStroke();
     self.tableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:self.tableView];
 
@@ -62,6 +71,7 @@
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"log"];
     if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"log"];
     SLLogEntry *e = self.current[indexPath.row];
+    cell.backgroundColor = [UIColor clearColor];
 
     static NSDateFormatter *f = nil;
     static dispatch_once_t onceToken;
@@ -74,10 +84,11 @@
     cell.textLabel.text = [NSString stringWithFormat:@"[%@][%@] %@",
                            [f stringFromDate:e.timestamp], e.featureName, first];
     cell.textLabel.font = [UIFont systemFontOfSize:13];
+    cell.textLabel.textColor = SLColorText();
     cell.detailTextLabel.text = e.message;
     cell.detailTextLabel.numberOfLines = 3;
     cell.detailTextLabel.font = [UIFont systemFontOfSize:11];
-    cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
+    cell.detailTextLabel.textColor = SLColorText2();
     return cell;
 }
 

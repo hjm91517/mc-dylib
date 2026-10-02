@@ -137,9 +137,13 @@ static NSString *SLStripPythonDollarVars(NSString *script) {
                                                                        message:[msg toString]
                                                                 preferredStyle:UIAlertControllerStyleAlert];
             [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            // 修复：选面积最大的全屏窗口，跳过 56pt 悬浮窗，避免弹窗被裁切
             UIWindow *kw = nil;
+            CGFloat bestArea = 0;
             for (UIWindow *w in UIApplication.sharedApplication.windows) {
-                if (w.isKeyWindow) { kw = w; break; }
+                CGRect r = w.bounds;
+                CGFloat area = r.size.width * r.size.height;
+                if (area > bestArea) { bestArea = area; kw = w; }
             }
             UIViewController *root = kw.rootViewController;
             while (root.presentedViewController) root = root.presentedViewController;

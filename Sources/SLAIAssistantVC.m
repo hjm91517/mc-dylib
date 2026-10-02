@@ -1,6 +1,7 @@
 #import "SLAIAssistantVC.h"
 #import "SLAPIClient.h"
 #import "SLLogManager.h"
+#import "SLTheme.h"
 
 #pragma mark - 聊天气泡 Cell
 
@@ -51,11 +52,11 @@
     self.leadingC.active = !isUser;
     self.trailingC.active = isUser;
     if (isUser) {
-        self.bubble.backgroundColor = [UIColor systemBlueColor];
+        self.bubble.backgroundColor = SLColorAccent();
         self.msgLabel.textColor = [UIColor whiteColor];
     } else {
-        self.bubble.backgroundColor = [UIColor secondarySystemBackgroundColor];
-        self.msgLabel.textColor = [UIColor labelColor];
+        self.bubble.backgroundColor = SLColorCard();
+        self.msgLabel.textColor = SLColorText();
     }
 }
 @end
@@ -72,7 +73,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"AI 助手";
-    self.view.backgroundColor = [UIColor systemBackgroundColor];
+    self.view.backgroundColor = SLColorBG();
     self.messages = [NSMutableArray array];
 
     [[NSNotificationCenter defaultCenter] addObserver:self
@@ -99,19 +100,30 @@
     self.tableView.rowHeight = UITableViewAutomaticDimension;
     self.tableView.estimatedRowHeight = 60;
     self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
-    self.tableView.backgroundColor = [UIColor systemBackgroundColor];
+    self.tableView.backgroundColor = SLColorBG();
     self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeInteractive;
     [self.view addSubview:self.tableView];
 
     self.input = [[UITextField alloc] initWithFrame:CGRectMake(8, H - 52, W - 80, 44)];
-    self.input.borderStyle = UITextBorderStyleRoundedRect;
+    self.input.borderStyle = UITextBorderStyleNone;
     self.input.placeholder = @"向 AI 提问…";
+    self.input.font = [UIFont systemFontOfSize:15];
+    self.input.textColor = SLColorText();
+    self.input.backgroundColor = SLColorCard();
+    self.input.layer.cornerRadius = 22;
+    self.input.layer.borderWidth = 1.0 / [UIScreen mainScreen].scale;
+    self.input.layer.borderColor = SLColorStroke().CGColor;
+    self.input.leftView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 14, 44)];
+    self.input.leftViewMode = UITextFieldViewModeAlways;
     self.input.delegate = self;
+    [self.input setValue:SLColorText3() forKeyPath:@"_placeholderLabel.textColor"];
     [self.view addSubview:self.input];
 
     self.sendButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.sendButton.frame = CGRectMake(W - 68, H - 52, 60, 44);
     [self.sendButton setTitle:@"发送" forState:UIControlStateNormal];
+    [self.sendButton setTitleColor:SLColorAccent() forState:UIControlStateNormal];
+    self.sendButton.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
     [self.sendButton addTarget:self action:@selector(send) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.sendButton];
 
@@ -129,10 +141,11 @@
 - (void)relayoutWithKeyboard:(CGFloat)kb animated:(BOOL)animated {
     CGFloat W = self.view.bounds.size.width;
     CGFloat H = self.view.bounds.size.height;
+    CGFloat bottom = self.view.safeAreaInsets.bottom;
     void (^block)(void) = ^{
-        self.input.frame = CGRectMake(8, H - 52 - kb, W - 80, 44);
-        self.sendButton.frame = CGRectMake(W - 68, H - 52 - kb, 60, 44);
-        self.tableView.frame = CGRectMake(0, 0, W, H - 56 - kb);
+        self.input.frame = CGRectMake(8, H - 52 - kb - bottom, W - 80, 44);
+        self.sendButton.frame = CGRectMake(W - 68, H - 52 - kb - bottom, 60, 44);
+        self.tableView.frame = CGRectMake(0, 0, W, H - 56 - kb - bottom);
     };
     if (animated) [UIView animateWithDuration:0.25 animations:block];
     else block();
@@ -147,10 +160,11 @@
 
     CGFloat W = self.view.bounds.size.width;
     CGFloat H = self.view.bounds.size.height;
+    CGFloat bottom = self.view.safeAreaInsets.bottom;
     [UIView animateWithDuration:duration animations:^{
-        self.input.frame = CGRectMake(8, H - 52 - kb, W - 80, 44);
-        self.sendButton.frame = CGRectMake(W - 68, H - 52 - kb, 60, 44);
-        self.tableView.frame = CGRectMake(0, 0, W, H - 56 - kb);
+        self.input.frame = CGRectMake(8, H - 52 - kb - bottom, W - 80, 44);
+        self.sendButton.frame = CGRectMake(W - 68, H - 52 - kb - bottom, 60, 44);
+        self.tableView.frame = CGRectMake(0, 0, W, H - 56 - kb - bottom);
     }];
 }
 

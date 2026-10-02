@@ -3,21 +3,27 @@
 #import <UIKit/UIKit.h>
 #import "SLLogManager.h"
 
+// 修复：选择面积最大的全屏窗口来 present，跳过 56pt 悬浮窗（否则弹窗会被裁切在悬浮窗内）
 static UIWindow *keyWindowForPresent(void) {
-    UIWindow *kw = nil;
+    UIWindow *best = nil;
+    CGFloat bestArea = 0;
     if (@available(iOS 13.0, *)) {
         for (UIScene *s in UIApplication.sharedApplication.connectedScenes) {
             if (s.activationState != UISceneActivationStateForegroundActive) continue;
             if (![s isKindOfClass:[UIWindowScene class]]) continue;
             UIWindowScene *ws = (UIWindowScene *)s;
             for (UIWindow *w in ws.windows) {
-                if (w.isKeyWindow) { kw = w; break; }
+                CGRect r = w.bounds;
+                CGFloat area = r.size.width * r.size.height;
+                if (area > bestArea) { bestArea = area; best = w; }
             }
-            if (kw) break;
         }
     }
-    if (!kw) kw = UIApplication.sharedApplication.delegate.window ?: UIApplication.sharedApplication.windows.firstObject;
-    return kw;
+    if (!best) {
+        UIWindow *kw = UIApplication.sharedApplication.delegate.window ?: UIApplication.sharedApplication.windows.firstObject;
+        best = kw;
+    }
+    return best;
 }
 
 static PyObject *py_sl_alert(PyObject *self, PyObject *args) {

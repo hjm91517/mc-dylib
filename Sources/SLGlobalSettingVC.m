@@ -1,5 +1,7 @@
 #import "SLGlobalSettingVC.h"
 #import "SLAPIClient.h"
+#import "SLConstants.h"
+#import "SLTheme.h"
 
 static const NSInteger kKeyTag   = 3000;
 static const NSInteger kURLTag   = 3001;
@@ -14,7 +16,7 @@ static const NSInteger kModelTag = 3002;
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"设置";
-    self.view.backgroundColor = [UIColor systemBackgroundColor];
+    self.view.backgroundColor = SLColorBG();
 
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
         initWithBarButtonSystemItem:UIBarButtonSystemItemSave
@@ -23,12 +25,26 @@ static const NSInteger kModelTag = 3002;
     self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
     self.tableView.delegate = self;
     self.tableView.dataSource = self;
+    self.tableView.backgroundColor = [UIColor clearColor];
+    self.tableView.separatorColor = SLColorStroke();
     self.tableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeOnDrag;
     [self.view addSubview:self.tableView];
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }
+
+// 深色主题：表头 / 表尾文字颜色
+- (void)tableView:(UITableView *)tableView willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section {
+    if ([view isKindOfClass:[UITableViewHeaderFooterView class]]) {
+        ((UITableViewHeaderFooterView *)view).textLabel.textColor = SLColorText2();
+    }
+}
+- (void)tableView:(UITableView *)tableView willDisplayFooterView:(UIView *)view forSection:(NSInteger)section {
+    if ([view isKindOfClass:[UITableViewHeaderFooterView class]]) {
+        ((UITableViewHeaderFooterView *)view).textLabel.textColor = SLColorText3();
+    }
+}
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     return section == 0 ? 3 : 1;
@@ -40,12 +56,13 @@ static const NSInteger kModelTag = 3002;
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section == 0) return @"支持 OpenAI 兼容接口。Base URL 例：https://api.openai.com/v1 或自建代理。";
-    return @"所有数据保存在 App 沙盒 Documents/SLNetEaseMC/。";
+    return [NSString stringWithFormat:@"所有数据保存在 App 沙盒 Documents/%@/。", kProjectFolderName];
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    cell.backgroundColor = SLColorCard();
 
     CGFloat W = tableView.bounds.size.width;
 
@@ -54,11 +71,14 @@ static const NSInteger kModelTag = 3002;
         UILabel *l = [[UILabel alloc] initWithFrame:CGRectMake(16, 0, 100, 44)];
         l.text = titles[indexPath.row];
         l.font = [UIFont boldSystemFontOfSize:14];
+        l.textColor = SLColorText();
         [cell.contentView addSubview:l];
 
         UITextField *tf = [[UITextField alloc] initWithFrame:CGRectMake(116, 6, W - 132, 32)];
         tf.borderStyle = UITextBorderStyleRoundedRect;
         tf.font = [UIFont systemFontOfSize:13];
+        tf.textColor = SLColorText();
+        tf.backgroundColor = SLColorCardAlt();
         tf.autoresizingMask = UIViewAutoresizingFlexibleWidth;
         if (indexPath.row == 0) {
             tf.text = [[SLAPIClient sharedInstance] apiKey];
@@ -76,9 +96,9 @@ static const NSInteger kModelTag = 3002;
         }
         [cell.contentView addSubview:tf];
     } else {
-        cell.textLabel.text = @"SLNetEaseMC · 脚本加载器 + AI 助手";
+        cell.textLabel.text = [NSString stringWithFormat:@"%@ · 脚本加载器 + AI 助手", kLibraryName];
         cell.textLabel.font = [UIFont systemFontOfSize:13];
-        cell.textLabel.textColor = [UIColor secondaryLabelColor];
+        cell.textLabel.textColor = SLColorText2();
     }
     return cell;
 }

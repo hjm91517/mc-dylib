@@ -6,6 +6,7 @@
 #import "SLHookHelper.h"
 #import "SLLogManager.h"
 #import "SLHotkeyManager.h"
+#import "SLConstants.h"
 
 static id gLaunchObserver = nil;
 
@@ -19,7 +20,8 @@ static void SLInitPython(void) {
     if (Py_IsInitialized()) return;
 
     NSString *doc = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *pyDir = [doc stringByAppendingPathComponent:@"SLNetEaseMC/pylib"];
+    // 修复：使用统一项目目录常量，避免与仓库 / Constants 不一致
+    NSString *pyDir = [[doc stringByAppendingPathComponent:kProjectFolderName] stringByAppendingPathComponent:@"pylib"];
     [[NSFileManager defaultManager] createDirectoryAtPath:pyDir
                               withIntermediateDirectories:YES attributes:nil error:nil];
 

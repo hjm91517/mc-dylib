@@ -1,6 +1,7 @@
 #import "SLSettingVC.h"
 #import "SLScriptManager.h"
 #import "SLScriptEngine.h"
+#import "SLTheme.h"
 
 static const NSInteger kFieldTagBase = 1000;
 
@@ -25,7 +26,7 @@ static const NSInteger kFieldTagBase = 1000;
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = self.feature.name;
-    self.view.backgroundColor = [UIColor systemBackgroundColor];
+    self.view.backgroundColor = SLColorBG();
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
         initWithBarButtonSystemItem:UIBarButtonSystemItemSave
                              target:self action:@selector(save)];
@@ -33,11 +34,25 @@ static const NSInteger kFieldTagBase = 1000;
     self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
     self.tableView.delegate = self;
     self.tableView.dataSource = self;
+    self.tableView.backgroundColor = [UIColor clearColor];
+    self.tableView.separatorColor = SLColorStroke();
     self.tableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeOnDrag;
     [self.view addSubview:self.tableView];
 
     [self parseScriptVariables];
+}
+
+// 深色主题：表头 / 表尾文字颜色
+- (void)tableView:(UITableView *)tableView willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section {
+    if ([view isKindOfClass:[UITableViewHeaderFooterView class]]) {
+        ((UITableViewHeaderFooterView *)view).textLabel.textColor = SLColorText2();
+    }
+}
+- (void)tableView:(UITableView *)tableView willDisplayFooterView:(UIView *)view forSection:(NSInteger)section {
+    if ([view isKindOfClass:[UITableViewHeaderFooterView class]]) {
+        ((UITableViewHeaderFooterView *)view).textLabel.textColor = SLColorText3();
+    }
 }
 
 - (void)parseScriptVariables {
@@ -100,6 +115,7 @@ static const NSInteger kFieldTagBase = 1000;
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    cell.backgroundColor = SLColorCard();
 
     CGFloat W = tableView.bounds.size.width;
 
@@ -107,9 +123,11 @@ static const NSInteger kFieldTagBase = 1000;
         UILabel *l = [[UILabel alloc] initWithFrame:CGRectMake(16, 0, W - 100, 44)];
         l.text = indexPath.row == 0 ? @"启用功能" : @"显示快捷键悬浮按钮";
         l.font = [UIFont systemFontOfSize:15];
+        l.textColor = SLColorText();
         [cell.contentView addSubview:l];
 
         UISwitch *sw = [[UISwitch alloc] init];
+        sw.onTintColor = SLColorAccent();
         if (indexPath.row == 0) {
             sw.on = self.feature.enabled;
             self.enableSwitch = sw;
@@ -123,19 +141,22 @@ static const NSInteger kFieldTagBase = 1000;
         UILabel *l = [[UILabel alloc] initWithFrame:CGRectMake(16, 0, 110, 44)];
         l.text = v[@"name"];
         l.font = [UIFont boldSystemFontOfSize:14];
+        l.textColor = SLColorText();
         [cell.contentView addSubview:l];
 
         UITextField *tf = [[UITextField alloc] initWithFrame:CGRectMake(130, 6, W - 146, 32)];
         tf.borderStyle = UITextBorderStyleRoundedRect;
         tf.text = v[@"value"];
         tf.font = [UIFont systemFontOfSize:14];
+        tf.textColor = SLColorText();
+        tf.backgroundColor = SLColorCardAlt();
         tf.autoresizingMask = UIViewAutoresizingFlexibleWidth;
         tf.tag = kFieldTagBase + indexPath.row;
         [tf addTarget:self action:@selector(varFieldChanged:) forControlEvents:UIControlEventEditingDidEnd];
         [cell.contentView addSubview:tf];
     } else {
         cell.textLabel.text = @"▶️ 立即运行一次";
-        cell.textLabel.textColor = [UIColor systemBlueColor];
+        cell.textLabel.textColor = SLColorAccent();
         cell.textLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
         cell.selectionStyle = UITableViewCellSelectionStyleDefault;
     }

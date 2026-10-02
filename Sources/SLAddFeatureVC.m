@@ -3,6 +3,7 @@
 #import "SLScriptManager.h"
 #import "SLAPIClient.h"
 #import "SLLogManager.h"
+#import "SLTheme.h"
 
 @interface SLAddFeatureVC ()
 @property (nonatomic, strong) UIScrollView *scrollView;
@@ -17,7 +18,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"添加功能";
-    self.view.backgroundColor = [UIColor systemBackgroundColor];
+    self.view.backgroundColor = SLColorBG();
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
         initWithBarButtonSystemItem:UIBarButtonSystemItemSave
                              target:self action:@selector(save)];
@@ -37,41 +38,65 @@
     // 安全起见默认选 JS，避免在未嵌入 Python.framework 的环境误以为 Python 可用
     self.typeSegment.selectedSegmentIndex = 0;
     self.typeSegment.frame = CGRectMake(pad, 16, W - pad * 2, 36);
+    self.typeSegment.selectedSegmentTintColor = SLColorAccent();
+    [self.typeSegment setTitleTextAttributes:@{NSForegroundColorAttributeName: [UIColor whiteColor],
+                                               NSFontAttributeName: [UIFont systemFontOfSize:14 weight:UIFontWeightMedium]}
+                                    forState:UIControlStateSelected];
+    [self.typeSegment setTitleTextAttributes:@{NSForegroundColorAttributeName: SLColorText2()}
+                                    forState:UIControlStateNormal];
     [self.scrollView addSubview:self.typeSegment];
 
     // 名称
     self.nameField = [[UITextField alloc] initWithFrame:CGRectMake(pad, 64, W - pad * 2, 42)];
     self.nameField.placeholder = @"功能名称";
-    self.nameField.borderStyle = UITextBorderStyleRoundedRect;
     self.nameField.font = [UIFont systemFontOfSize:15];
+    self.nameField.textColor = SLColorText();
+    self.nameField.backgroundColor = SLColorCard();
+    self.nameField.layer.cornerRadius = 10;
+    self.nameField.layer.borderWidth = 1.0 / [UIScreen mainScreen].scale;
+    self.nameField.layer.borderColor = SLColorStroke().CGColor;
+    self.nameField.leftView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 12, 42)];
+    self.nameField.leftViewMode = UITextFieldViewModeAlways;
     self.nameField.clearButtonMode = UITextFieldViewModeWhileEditing;
+    [self.nameField setValue:SLColorText3() forKeyPath:@"_placeholderLabel.textColor"];
     [self.scrollView addSubview:self.nameField];
 
     // AI 辅助
     self.aiButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.aiButton.frame = CGRectMake(pad, 118, W - pad * 2, 42);
     [self.aiButton setTitle:@"🤖  让 AI 帮我写 / 优化脚本" forState:UIControlStateNormal];
-    self.aiButton.backgroundColor = [UIColor systemBlueColor];
+    self.aiButton.backgroundColor = SLColorAccent();
     [self.aiButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     self.aiButton.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
-    self.aiButton.layer.cornerRadius = 8;
+    self.aiButton.layer.cornerRadius = 10;
     [self.aiButton addTarget:self action:@selector(askAI) forControlEvents:UIControlEventTouchUpInside];
     [self.scrollView addSubview:self.aiButton];
 
     // 脚本输入
     CGFloat tvY = 174;
-    CGFloat tvH = H - tvY - 40;
+    CGFloat tvH = H - tvY - 60;
     if (tvH < 220) tvH = 220;
     self.scriptTextView = [[UITextView alloc] initWithFrame:CGRectMake(pad, tvY, W - pad * 2, tvH)];
     self.scriptTextView.font = [UIFont fontWithName:@"Menlo" size:13];
-    self.scriptTextView.layer.borderWidth = 1;
-    self.scriptTextView.layer.borderColor = [UIColor systemGray4Color].CGColor;
-    self.scriptTextView.layer.cornerRadius = 8;
-    self.scriptTextView.textContainerInset = UIEdgeInsetsMake(8, 8, 8, 8);
+    self.scriptTextView.backgroundColor = SLColorCard();
+    self.scriptTextView.textColor = SLColorText();
+    self.scriptTextView.layer.borderWidth = 1.0 / [UIScreen mainScreen].scale;
+    self.scriptTextView.layer.borderColor = SLColorStroke().CGColor;
+    self.scriptTextView.layer.cornerRadius = 10;
+    self.scriptTextView.textContainerInset = UIEdgeInsetsMake(10, 10, 10, 10);
     self.scriptTextView.autocapitalizationType = UITextAutocapitalizationTypeNone;
     self.scriptTextView.autocorrectionType = UITextAutocorrectionTypeNo;
     [self.scrollView addSubview:self.scriptTextView];
+
+    // 修复：手动 frame 布局必须显式设置 contentSize，否则小屏 / 横屏下脚本区无法滚动到底部
+    self.scrollView.contentSize = CGSizeMake(W, tvY + tvH + 48);
 }
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    [self.nameField becomeFirstResponder];
+}
+
 #pragma mark - 保存
 
 - (void)save {
@@ -149,10 +174,6 @@
 #pragma mark - 提示
 
 - (void)showToast:(NSString *)msg {
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:nil
-                                                               message:msg
-                                                        preferredStyle:UIAlertControllerStyleAlert];
-    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-    [self presentViewController:a animated:YES completion:nil];
+    SLPresentToast(nil, msg);
 }
 @end

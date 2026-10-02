@@ -3,4 +3,5 @@
 @interface SLFloatWindow : NSObject
 + (instancetype)sharedInstance;
 - (void)show;
+- (void)restoreAnimated;
 @end
