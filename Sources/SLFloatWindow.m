@@ -25,7 +25,8 @@
     self.floatWindow.windowLevel = UIWindowLevelStatusBar + 1;
     self.floatWindow.backgroundColor = [UIColor clearColor];
     self.floatWindow.rootViewController = [UIViewController new];
-    self.floatWindow.hidden = NO;
+    // 使用 makeKeyAndVisible 更可靠地展示 window
+    [self.floatWindow makeKeyAndVisible];
 
     // 阴影放在 window 层（iconView 因 masksToBounds 无法显示阴影）
     self.floatWindow.layer.shadowColor = [UIColor blackColor].CGColor;
@@ -94,8 +95,18 @@
 }
 
 - (void)iconTapped {
-    // 防止重复打开
-    UIViewController *presenter = [self topMostController] ?: self.floatWindow.rootViewController;
+    // 先从应用主窗口拿 presenter，排除悬浮窗自身的 window
+    UIViewController *presenter = [self topMostController];
+    if (!presenter || presenter == self.floatWindow.rootViewController) {
+        for (UIWindow *w in UIApplication.sharedApplication.windows.reverseObjectEnumerator) {
+            if (w == self.floatWindow) continue;
+            if (w.rootViewController) {
+                presenter = w.rootViewController;
+                break;
+            }
+        }
+    }
+    if (!presenter) return;
     if (presenter.presentedViewController) return;
 
     SLMainTabVC *tab = [[SLMainTabVC alloc] init];
@@ -103,13 +114,12 @@
     tab.modalPresentationStyle = UIModalPresentationFullScreen;
     if (tab.presentationController) tab.presentationController.delegate = self;
 
-    // 在展示主面板时临时隐藏悬浮窗（避免在部分系统下被系统隐藏且无法恢复）
-    self.floatWindow.hidden = YES;
+    // 不再直接隐藏悬浮窗（部分系统下隐藏后无法恢复），改为从应用窗口展示主面板
     [presenter presentViewController:tab animated:YES completion:nil];
 }
 
 - (void)presentationControllerDidDismiss:(UIPresentationController *)presentationController {
-    // 用户通过交互或系统关闭时恢复悬浮窗
+    // 用户通过交互或系统关闭时确保悬浮窗仍可见
     self.floatWindow.hidden = NO;
 }
 
