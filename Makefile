@@ -40,8 +40,12 @@ hjpythonzd_CFLAGS = -fobjc-arc \
     -F$(PYTHON_FRAMEWORK)/..
 
 # 修复：weak 链接 Python —— 未嵌入 Python.framework 时 dylib 仍可加载（JS 功能不受影响）
-# -fuse-ld=lld：Linux 交叉编译时强制使用 ld64.lld（Mach-O），避免 clang 误选 ELF ld
-hjpythonzd_LDFLAGS = -F$(PYTHON_FRAMEWORK)/.. -weak_framework Python -fuse-ld=lld
+# -fuse-ld=lld 仅 Linux 交叉编译时需要（强制 Mach-O 链接器 ld64.lld）；
+# macOS 上 Xcode 自带 ld64，传该参数会报「链接器名称无效」，必须条件化。
+hjpythonzd_LDFLAGS = -F$(PYTHON_FRAMEWORK)/.. -weak_framework Python
+ifeq ($(shell uname -s),Linux)
+hjpythonzd_LDFLAGS += -fuse-ld=lld
+endif
 
 hjpythonzd_FRAMEWORKS = UIKit Foundation JavaScriptCore CoreGraphics
 hjpythonzd_INSTALL_PATH = /usr/lib

@@ -30,6 +30,24 @@ hjpythonzd/
     └── SLHookHelper.h/.m         # 反检测 Hook（预留 fishhook 接口）
 ```
 
+## 构建（标准通道：云端 GitHub Actions）
+
+推送 main 分支或手动触发 `.github/workflows/main.yml` 即可在 macOS 上编译并上传
+`SLNetEaseMC.zip` 产物（dylib + 猫咪图标 resources + Python.framework）。
+
+本地调试编译（Linux 交叉编译，结果与云端一致）：
+
+```bash
+export THEOS=<path>/theos
+export PYTHON_FRAMEWORK=<path>/Python.xcframework/ios-arm64/Python.framework
+make clean && make FINALPACKAGE=1 DEBUG=0
+# 产物：.theos/obj/hjpythonzd.dylib（已 ldid 签名，arm64）
+```
+
+> 说明：Makefile 已做平台自适应 —— `-fuse-ld=lld` 仅在 Linux 生效（强制 ld64.lld），
+> macOS 上由 Xcode 自带 ld64 完成链接，一份 Makefile 双平台通用。
+> Linux 交叉编译需要：Theos + iPhoneOS13.7.sdk（TBD v3 兼容 clang-14/ld64.lld）+ Python-Apple-support。
+
 ## 本版相对你贴出的代码修复的问题
 
 | # | 问题 | 修复 |
