@@ -72,3 +72,87 @@
     self.scriptTextView.autocorrectionType = UITextAutocorrectionTypeNo;
     [self.scrollView addSubview:self.scriptTextView];
 }
+#pragma mark - 保存
+
+- (void)save {
+    [self.view endEditing:YES];
+
+    NSString *name = [self.nameField.text stringByTrimmingCharactersInSet:
+        [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSString *script = [self.scriptTextView.text stringByTrimmingCharactersInSet:
+        [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+
+    if (!name.length)   { [self showToast:@"请填写功能名称"]; return; }
+    if (!script.length) { [self showToast:@"脚本内容不能为空"]; return; }
+
+    SLFeature *f = [[SLFeature alloc] init];
+    f.featureId     = [[NSUUID UUID] UUIDString];
+    f.name          = name;
+    f.scriptType    = (self.typeSegment.selectedSegmentIndex == 1) ? @"py" : @"js";
+    f.scriptContent = self.scriptTextView.text;
+    f.enabled       = YES;
+
+    [[SLScriptManager sharedInstance] saveFeature:f];
+    [[SLLogManager sharedInstance] log:SLLogTypeSystem feature:@"添加"
+                               message:[NSString stringWithFormat:@"已添加功能: %@", name]];
+
+    if (self.onSave) self.onSave();
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+#pragma mark - AI 辅助
+
+- (void)askAI {
+    [self.view endEditing:YES];
+
+    if (![[SLAPIClient sharedInstance] apiKey].length) {
+        [self showToast:@"请先在「设置」页填写 API Key"];
+        return;
+    }
+
+    NSString *scriptType = (self.typeSegment.selectedSegmentIndex == 1) ? @"Python" : @"JavaScript";
+    NSString *requirement = self.scriptTextView.text.length
+        ? self.scriptTextView.text
+        : self.nameField.text;
+    if (!requirement.length) requirement = @"一个示例脚本";
+
+    NSString *prompt = [NSString stringWithFormat:
+        @"你是一个 iOS 游戏辅助脚本专家。请根据以下需求编写一段%@脚本。\n"
+        @"脚本中可以调用 sl_log(消息) 打印日志、sl_alert(消息) 弹窗。\n"
+        @"只输出脚本代码本身，不要任何解释或 markdown 代码块标记。\n\n需求：\n%@",
+        scriptType, requirement];
+
+    [self.aiButton setTitle:@"⏳ AI 生成中…" forState:UIControlStateNormal];
+    self.aiButton.enabled = NO;
+
+    NSArray *msgs = @[@{@"role": @"user", @"content": prompt}];
+    __weak typeof(self) weakSelf = self;
+    [[SLAPIClient sharedInstance] chatWithMessages:msgs completion:^(NSString *reply, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            __strong typeof(weakSelf) self2 = weakSelf;
+            if (!self2) return;
+            [self2.aiButton setTitle:@"🤖  让 AI 帮我写 / 优化脚本" forState:UIControlStateNormal];
+            self2.aiButton.enabled = YES;
+            if (error) {
+                [self2 showToast:[NSString stringWithFormat:@"AI 请求失败: %@", error.localizedDescription]];
+                return;
+            }
+            if (reply.length) {
+                self2.scriptTextView.text = reply;
+                [[SLLogManager sharedInstance] log:SLLogTypeAI feature:@"AI辅助"
+                                           message:@"已生成脚本并填入编辑框"];
+            }
+        });
+    }];
+}
+
+#pragma mark - 提示
+
+- (void)showToast:(NSString *)msg {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:nil
+                                                               message:msg
+                                                        preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:a animated:YES completion:nil];
+}
+@end

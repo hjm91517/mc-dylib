@@ -82,9 +82,20 @@
                      [f.lastRunStatus isEqualToString:@"fail"]    ? @"❌" : @"⚪";
     cell.textLabel.text = [NSString stringWithFormat:@"%@ %@", icon, f.name];
     cell.textLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
-    cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · %@",
+    NSString *timeStr = @"从未运行";
+    if (f.lastRunTime) {
+        static NSDateFormatter *fmt = nil;
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            fmt = [[NSDateFormatter alloc] init];
+            fmt.dateFormat = @"MM-dd HH:mm";
+        });
+        timeStr = [fmt stringFromDate:f.lastRunTime];
+    }
+    cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · %@ · %@",
                                  [f.scriptType uppercaseString],
-                                 f.enabled ? @"启用" : @"停用"];
+                                 f.enabled ? @"启用" : @"停用",
+                                 timeStr];
     cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
     cell.accessoryType = f.enabled ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
     return cell;

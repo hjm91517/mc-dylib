@@ -47,11 +47,11 @@
     NSString *key = [self apiKey];
     if (!key.length) {
         if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-1
-            userInfo:@{NSLocalizedDescriptionKey: @"请先在设置��填写 API Key"}]);
+            userInfo:@{NSLocalizedDescriptionKey: @"请先在设置中填写 API Key"}]);
         return;
     }
-    NSString *base = [self.baseURL stringByTrimmingCharactersInSet:
-        [NSCharacterSet characterSetWithCharactersInString:@"/"]];
+    NSString *base = [self.baseURL stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    while ([base hasSuffix:@"/"]) base = [base substringToIndex:base.length - 1];
     NSString *urlStr = [NSString stringWithFormat:@"%@/chat/completions", base];
     NSURL *url = [NSURL URLWithString:urlStr];
     if (!url) {
@@ -100,7 +100,32 @@
             if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-6 userInfo:@{NSLocalizedDescriptionKey:@"choices 内容不合法"}]);
             return;
         }
-        if (completion) completion(obj, nil);
+        id content = first[@"message"][@"content"];
+        NSString *reply = nil;
+        if ([content isKindOfClass:[NSString class]]) {
+            reply = content;
+        } else if ([content isKindOfClass:[NSArray class]]) {
+            // 多模态格式：[{@"type": @"text", @"text": @"..."}]
+            NSMutableArray *parts = [NSMutableArray array];
+            for (id item in (NSArray *)content) {
+                if ([item isKindOfClass:[NSDictionary class]] &&
+                    [item[@"text"] isKindOfClass:[NSString class]]) {
+                    [parts addObject:item[@"text"]];
+                }
+            }
+            reply = [parts componentsJoinedByString:@""];
+        }
+        if (!reply.length) {
+            // 部分兼容接口把文本放在 message 外的字段
+            id msg = first[@"message"];
+            if ([msg isKindOfClass:[NSString class]]) reply = msg;
+        }
+        if (!reply.length) {
+            if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-7
+                userInfo:@{NSLocalizedDescriptionKey:@"响应中未找到文本内容"}]);
+            return;
+        }
+        if (completion) completion(reply, nil);
     }];
     [task resume];
 }

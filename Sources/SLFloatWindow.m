@@ -134,5 +134,16 @@
     c.y = MAX(half, MIN(screen.size.height - half, c.y));
     self.floatWindow.center = c;
     [pan setTranslation:CGPointZero inView:self.floatWindow.rootViewController.view];
+
+    // 手势结束：自动吸附到最近的屏幕左右边缘
+    if (pan.state == UIGestureRecognizerStateEnded ||
+        pan.state == UIGestureRecognizerStateCancelled) {
+        CGFloat targetX = (c.x < screen.size.width / 2.0) ? half : (screen.size.width - half);
+        [UIView animateWithDuration:0.25 delay:0
+                            options:UIViewAnimationOptionCurveEaseOut
+                         animations:^{
+            self.floatWindow.center = CGPointMake(targetX, c.y);
+        } completion:nil];
+    }
 }
 @end

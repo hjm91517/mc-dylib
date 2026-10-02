@@ -72,7 +72,7 @@ static void SLInitPython(void) {
     }
 
     setenv("PYTHONHOME", fwRes.UTF8String, 1);
-    setenv("PYTHONPATH", [[paths valueForKey:@"description"] componentsJoinedByString:@":"].UTF8String, 1);
+    setenv("PYTHONPATH", [paths componentsJoinedByString:@":"].UTF8String, 1);
     setenv("PYTHONDONTWRITEBYTECODE", "1", 1);
     setenv("PYTHONUNBUFFERED", "1", 1);
 
