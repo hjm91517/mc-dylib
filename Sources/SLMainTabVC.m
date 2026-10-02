@@ -100,15 +100,24 @@ static const CGFloat kSidebarWidth = 92;
         @[@"帮助", @"questionmark.circle.fill"],
     ];
     self.sideButtons = [NSMutableArray array];
-    CGFloat y = 116;
-    CGFloat itemH = 56;
+    CGFloat y = 110;
+    CGFloat itemH = 54;
     for (NSUInteger i = 0; i < items.count; i++) {
         UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom];
         b.frame = CGRectMake(8, y + i * (itemH + 8), W - 16, itemH);
         b.tag = (NSInteger)i;
         b.layer.cornerRadius = 12;
 
-        UIImageView *iv = [[UIImageView alloc] initWithFrame:CGRectMake((W-16)/2 - 12, 7, 24, 24)];
+        // 选中指示条（左侧 3pt 竖条，MoonPack 风格）
+        UIView *ind = [[UIView alloc] initWithFrame:CGRectMake(0, 12, 3, itemH - 24)];
+        ind.backgroundColor = SLColorAccent();
+        ind.layer.cornerRadius = 1.5;
+        ind.hidden = YES;
+        ind.tag = 200;
+        ind.userInteractionEnabled = NO;
+        [b addSubview:ind];
+
+        UIImageView *iv = [[UIImageView alloc] initWithFrame:CGRectMake((W-16)/2 - 11, 8, 22, 22)];
         iv.image = [UIImage systemImageNamed:items[i][1]];
         iv.contentMode = UIViewContentModeScaleAspectFit;
         iv.tag = 100;
@@ -117,7 +126,7 @@ static const CGFloat kSidebarWidth = 92;
 
         UILabel *lb = [[UILabel alloc] initWithFrame:CGRectMake(0, 33, W - 16, 15)];
         lb.text = items[i][0];
-        lb.font = [UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
+        lb.font = [UIFont systemFontOfSize:10.5 weight:UIFontWeightMedium];
         lb.textAlignment = NSTextAlignmentCenter;
         lb.tag = 101;
         lb.userInteractionEnabled = NO;
@@ -191,11 +200,15 @@ static const CGFloat kSidebarWidth = 92;
     for (NSUInteger i = 0; i < self.sideButtons.count; i++) {
         UIButton *b = self.sideButtons[i];
         BOOL sel = (i == (NSUInteger)idx);
-        b.backgroundColor = sel ? SLColorAccentDim() : [UIColor clearColor];
+        [UIView animateWithDuration:0.2 animations:^{
+            b.backgroundColor = sel ? SLColorAccentDim() : [UIColor clearColor];
+        }];
         UIImageView *iv = [b viewWithTag:100];
         iv.tintColor = sel ? SLColorAccent() : SLColorText3();
         UILabel *lb = [b viewWithTag:101];
         lb.textColor = sel ? SLColorAccent() : SLColorText2();
+        UIView *ind = [b viewWithTag:200];
+        ind.hidden = !sel;
     }
 
     UIViewController *target = self.childNavs[idx];

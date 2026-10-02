@@ -41,14 +41,33 @@ static void SLInitPython(void) {
     }
 
     // 修复：Py_Initialize 之前必须设置 PYTHONHOME / PYTHONPATH，否则必崩。
-    // 同时额外校验 Frameworks/Python.framework/Resources/lib/python3.* 是否真实可用，
-    // 避免在网易/改包环境下因为 Python 资源不完整导致崩溃。
-    NSString *fwRes = [bundlePath stringByAppendingPathComponent:@"Frameworks/Python.framework/Resources"];
-    NSString *fwRoot = [bundlePath stringByAppendingPathComponent:@"Frameworks/Python.framework"];
-    BOOL hasPythonFramework = [fm fileExistsAtPath:fwRoot] || [fm fileExistsAtPath:fwRes];
-    if (!hasPythonFramework) {
+    // 多路径查找 Python.framework（Frameworks/、App 根目录、Documents），
+    // 找不到时把搜索过的路径写进日志，便于排查注入位置。
+    NSString *fwRoot = nil;
+    NSMutableArray *searched = [NSMutableArray array];
+    NSArray<NSString *> *candidates = @[
+        [bundlePath stringByAppendingPathComponent:@"Frameworks/Python.framework"],
+        [bundlePath stringByAppendingPathComponent:@"Python.framework"],
+        [doc stringByAppendingPathComponent:@"Python.framework"],
+    ];
+    for (NSString *c in candidates) {
+        if ([fm fileExistsAtPath:c]) {
+            fwRoot = c;
+            break;
+        }
+        [searched addObject:c];
+    }
+    if (!fwRoot) {
         [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"Init"
-                                   message:@"App 内未找到 Frameworks/Python.framework，跳过 Python 初始化以防止崩溃。"];
+                                   message:[NSString stringWithFormat:@"未找到 Python.framework（已搜索: %@），跳过 Python 初始化（JS 正常）",
+                                            [searched componentsJoinedByString:@" / "]]];
+        return;
+    }
+    NSString *fwRes = [fwRoot stringByAppendingPathComponent:@"Resources"];
+    if (![fm fileExistsAtPath:fwRes]) {
+        [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"Init"
+                                   message:[NSString stringWithFormat:@"找到 %@ 但缺少 Resources 目录，跳过 Python 初始化",
+                                            fwRoot]];
         return;
     }
 

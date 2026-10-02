@@ -25,6 +25,11 @@
         self.contentView.backgroundColor = [UIColor clearColor];
 
         _card = SLMakeCard();
+        // 卡片浮起阴影（MoonPack 质感）
+        _card.layer.shadowColor = [UIColor blackColor].CGColor;
+        _card.layer.shadowOpacity = 0.30;
+        _card.layer.shadowOffset = CGSizeMake(0, 3);
+        _card.layer.shadowRadius = 6;
         [self.contentView addSubview:_card];
 
         _statusDot = [[UIView alloc] init];
@@ -100,6 +105,8 @@
     self.metaLabel.text = [NSString stringWithFormat:@"%@ · %@",
                            f.enabled ? @"已启用" : @"已停用", timeStr];
     self.card.alpha = f.enabled ? 1.0 : 0.55;
+    // 停用状态同时隐藏运行箭头，弱化视觉
+    self.runArrow.alpha = f.enabled ? 1.0 : 0.4;
 }
 @end
 
