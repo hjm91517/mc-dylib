@@ -19,6 +19,7 @@
 - (NSString *)storagePath {
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *doc = paths.firstObject ?: NSTemporaryDirectory();
+    // 使用常量，避免与仓库/Constants 不一致
     NSString *dir = [doc stringByAppendingPathComponent:kProjectFolderName];
     [[NSFileManager defaultManager] createDirectoryAtPath:dir
                               withIntermediateDirectories:YES
