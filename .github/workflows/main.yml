@@ -1,3 +1,4 @@
+# （整文件替换 / 主分支上的同路径文件）
 name: Build SLNetEaseMC Dylib
 
 on:
@@ -24,7 +25,6 @@ jobs:
           fi
           ls -la
 
-      # 不再使用第三方 theos-action（已失修，Get SDKs 阶段会报 theos/sdks is not a directory）
       - name: Install Theos
         run: |
           set -euo pipefail
@@ -35,11 +35,9 @@ jobs:
           cp -R sdks-master/*.sdk "$GITHUB_WORKSPACE/theos/sdks/"
           ls "$GITHUB_WORKSPACE/theos/sdks"
 
-      # 直接下载 BeeWare 预编译的 iOS Python，无需 ./configure 源码编译
       - name: Download Python-Apple-support
         run: |
           set -euo pipefail
-          # 优先用 GitHub API 取最新 iOS 资产；API 限流/失败则回退到固定版本
           URL=$(curl -sf https://api.github.com/repos/beeware/Python-Apple-support/releases/latest \
             | python3 -c "import sys,json;assets=json.load(sys.stdin).get('assets',[]);print(next((a['browser_download_url'] for a in assets if 'iOS' in a['name']), ''))" \
             || true)
@@ -48,7 +46,6 @@ jobs:
           fi
           echo "Downloading: $URL"
           curl -fL "$URL" -o py.tar.gz
-          # 校验下载到的是真压缩包而不是 404 HTML 页
           file py.tar.gz
           mkdir -p python-support
           tar -xzf py.tar.gz -C python-support
@@ -101,8 +98,14 @@ jobs:
       - name: Package zip
         run: |
           set -euo pipefail
-          DYLIB=$(find .theos/obj -name "SLNetEaseMC.dylib" | head -1)
+          # 在 .theos 目录下查找第一个 dylib，避免固定子路径导致找不到
+          DYLIB=$(find .theos -type f -name "*.dylib" | head -1 || true)
           echo "dylib: $DYLIB"
+          if [ -z "$DYLIB" ]; then
+            echo "::error::未找到生成的 dylib，列出 .theos 目录以供调试："
+            find .theos -maxdepth 6 -type f -name "*.dylib" -print || true
+            exit 1
+          fi
           mkdir -p dist/SLNetEaseMC
           cp "$DYLIB" dist/SLNetEaseMC/
           cp -R resources dist/SLNetEaseMC/
