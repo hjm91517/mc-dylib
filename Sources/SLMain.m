@@ -63,15 +63,20 @@ static void SLInitPython(void) {
                                             [searched componentsJoinedByString:@" / "]]];
         return;
     }
+    // 兼容两种 framework 布局：
+    //   布局 A（BeeWare 等标准）：framework/Resources/lib/python3.x  → PYTHONHOME=Resources
+    //   布局 B（无 Resources）：   framework/lib/python3.x            → PYTHONHOME=framework 根
     NSString *fwRes = [fwRoot stringByAppendingPathComponent:@"Resources"];
-    if (![fm fileExistsAtPath:fwRes]) {
-        [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"Init"
-                                   message:[NSString stringWithFormat:@"找到 %@ 但缺少 Resources 目录，跳过 Python 初始化",
-                                            fwRoot]];
-        return;
+    NSString *libDir = nil;
+    NSString *pythonHome = nil;
+    if ([fm fileExistsAtPath:fwRes]) {
+        libDir = [fwRes stringByAppendingPathComponent:@"lib"];
+        pythonHome = fwRes;
+    } else {
+        libDir = [fwRoot stringByAppendingPathComponent:@"lib"];
+        pythonHome = fwRoot;
     }
 
-    NSString *libDir = [fwRes stringByAppendingPathComponent:@"lib"];
     BOOL foundPythonLib = NO;
     NSMutableArray<NSString *> *paths = [NSMutableArray arrayWithObject:pyDir];
     NSArray *entries = [fm contentsOfDirectoryAtPath:libDir error:nil] ?: @[];
@@ -88,11 +93,12 @@ static void SLInitPython(void) {
 
     if (!foundPythonLib) {
         [[SLLogManager sharedInstance] log:SLLogTypeError feature:@"Init"
-                                   message:[NSString stringWithFormat:@"Python.framework 资源异常: %@，未发现 python3.x 目录，跳过初始化（BundleID=%@）", fwRes, bundleId]];
+                                   message:[NSString stringWithFormat:@"Python.framework 资源异常: %@ 下未发现 python3.x 标准库目录（已检查 %@ 与 %@），跳过初始化（BundleID=%@）",
+                                            fwRoot, fwRes, libDir, bundleId]];
         return;
     }
 
-    setenv("PYTHONHOME", fwRes.UTF8String, 1);
+    setenv("PYTHONHOME", pythonHome.UTF8String, 1);
     setenv("PYTHONPATH", [paths componentsJoinedByString:@":"].UTF8String, 1);
     setenv("PYTHONDONTWRITEBYTECODE", "1", 1);
     setenv("PYTHONUNBUFFERED", "1", 1);

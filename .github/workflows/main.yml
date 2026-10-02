@@ -115,6 +115,26 @@ jobs:
             mkdir -p dist/SLNetEaseMC/Frameworks
             cp -R "$PYFW" dist/SLNetEaseMC/Frameworks/
           fi
+          # 附加 Python 标准库：xcframework 本身不含纯 Python Lib，
+          # 从 CPython 3.14 官方源码取 Lib，并合入 iOS C 扩展（lib-dynload）。
+          PYLIBDIR="${{ github.workspace }}/${{ env.PYXC }}/ios-arm64/lib-arm64/python3.14"
+          if [ -d "$PYLIBDIR" ]; then
+            echo "Attaching Python stdlib (CPython 3.14.0 Lib + iOS lib-dynload)"
+            curl -sfL -o /tmp/cpython314.tar.gz https://github.com/python/cpython/archive/refs/tags/v3.14.0.tar.gz || true
+            if [ -s /tmp/cpython314.tar.gz ]; then
+              rm -rf /tmp/cpython314 && mkdir -p /tmp/cpython314
+              tar xzf /tmp/cpython314.tar.gz -C /tmp/cpython314 cpython-3.14.0/Lib
+              FWSL="dist/SLNetEaseMC/Frameworks/Python.framework/Resources/lib/python3.14"
+              mkdir -p "$FWSL"
+              cp -a /tmp/cpython314/cpython-3.14.0/Lib/* "$FWSL/"
+              rm -rf "$FWSL/test"
+              cp -a "$PYLIBDIR/lib-dynload" "$FWSL/"
+              cp "$PYLIBDIR/_sysconfigdata__ios_arm64-iphoneos.py" "$FWSL/" || true
+              echo "stdlib files: $(ls "$FWSL" | wc -l)"
+            else
+              echo "::warning::CPython 源码下载失败，zip 将不含纯 Python 标准库"
+            fi
+          fi
           cd dist && zip -q -r SLNetEaseMC.zip SLNetEaseMC
           ls -la SLNetEaseMC.zip
 
