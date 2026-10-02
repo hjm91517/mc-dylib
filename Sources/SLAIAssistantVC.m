@@ -116,7 +116,10 @@
     self.input.leftView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 14, 44)];
     self.input.leftViewMode = UITextFieldViewModeAlways;
     self.input.delegate = self;
-    [self.input setValue:SLColorText3() forKeyPath:@"_placeholderLabel.textColor"];
+    // 修复：公开 API 设置占位文字颜色（旧 KVC 写法在新版 iOS 会触发 UIKVCAccessProhibited 闪退）
+    self.input.attributedPlaceholder = [[NSAttributedString alloc]
+        initWithString:@"向 AI 提问…"
+        attributes:@{NSForegroundColorAttributeName: SLColorText3()}];
     [self.view addSubview:self.input];
 
     self.sendButton = [UIButton buttonWithType:UIButtonTypeSystem];

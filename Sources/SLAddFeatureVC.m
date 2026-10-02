@@ -58,7 +58,12 @@
     self.nameField.leftView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 12, 42)];
     self.nameField.leftViewMode = UITextFieldViewModeAlways;
     self.nameField.clearButtonMode = UITextFieldViewModeWhileEditing;
-    [self.nameField setValue:SLColorText3() forKeyPath:@"_placeholderLabel.textColor"];
+    // 修复：改用公开 API attributedPlaceholder 设置占位文字颜色。
+    // 旧写法 setValue:forKeyPath:@"_placeholderLabel.textColor" 访问 UITextField 私有属性，
+    // 新版 iOS（16+）触发 UIKVCAccessProhibited 异常导致 viewDidLoad 阶段闪退。
+    self.nameField.attributedPlaceholder = [[NSAttributedString alloc]
+        initWithString:@"功能名称"
+        attributes:@{NSForegroundColorAttributeName: SLColorText3()}];
     [self.scrollView addSubview:self.nameField];
 
     // AI 辅助

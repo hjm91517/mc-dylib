@@ -154,23 +154,13 @@ static void SLUncaughtExceptionHandler(NSException *exception) {
     if (data) [data writeToFile:[mgr storagePath] atomically:YES];
 }
 
-static void SLSignalHandler(int sig) {
-    // 记录信号崩溃，然后恢复默认行为让系统生成崩溃报告
-    NSString *msg = [NSString stringWithFormat:@"收到信号 %d", sig];
-    [SLLogManager sharedInstance]; // 确保单例存在
-    SLUncaughtExceptionHandler([NSException exceptionWithName:@"SignalCrash"
-                                                       reason:msg userInfo:nil]);
-    signal(sig, SIG_DFL);
-    raise(sig);
-}
-
+// 修复：不再为 SIGSEGV/SIGABRT 等硬信号安装 handler。
+// 注入进游戏进程后抢占系统 signal handler 是危险的：
+// 1) signal handler 上下文要求 async-signal-safe，任何 ObjC/Foundation 调用都会二次崩溃或死锁；
+// 2) 会干扰宿主游戏自身的崩溃处理，反而放大不稳定。
+// 只保留 NSSetUncaughtExceptionHandler（ObjC 异常路径安全），硬崩溃交给系统生成崩溃报告。
 - (void)installCrashHandler {
     NSSetUncaughtExceptionHandler(&SLUncaughtExceptionHandler);
-    signal(SIGABRT, SLSignalHandler);
-    signal(SIGSEGV, SLSignalHandler);
-    signal(SIGBUS,  SLSignalHandler);
-    signal(SIGTRAP, SLSignalHandler);
-    signal(SIGILL,  SLSignalHandler);
 }
 
 @end

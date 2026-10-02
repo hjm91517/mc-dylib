@@ -100,7 +100,16 @@
             if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-6 userInfo:@{NSLocalizedDescriptionKey:@"choices 内容不合法"}]);
             return;
         }
-        id content = first[@"message"][@"content"];
+        // 修复：先校验 message 类型再取 content。
+        // 旧写法 first[@"message"][@"content"] 在兼容接口返回字符串 message 时会
+        // 向 NSString 发 objectForKey:，触发 unrecognized selector 崩溃。
+        id msgObj = first[@"message"];
+        id content = nil;
+        if ([msgObj isKindOfClass:[NSDictionary class]]) {
+            content = msgObj[@"content"];
+        } else if ([msgObj isKindOfClass:[NSString class]]) {
+            content = msgObj;
+        }
         NSString *reply = nil;
         if ([content isKindOfClass:[NSString class]]) {
             reply = content;
@@ -114,11 +123,6 @@
                 }
             }
             reply = [parts componentsJoinedByString:@""];
-        }
-        if (!reply.length) {
-            // 部分兼容接口把文本放在 message 外的字段
-            id msg = first[@"message"];
-            if ([msg isKindOfClass:[NSString class]]) reply = msg;
         }
         if (!reply.length) {
             if (completion) completion(nil, [NSError errorWithDomain:@"SLAPI" code:-7
