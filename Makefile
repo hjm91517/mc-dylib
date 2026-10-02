@@ -11,6 +11,7 @@ LIBRARY_NAME = hjpythonzd
 
 hjpythonzd_FILES = \
     Sources/SLMain.m \
+    Sources/SLConstants.m \
     Sources/SLModel.m \
     Sources/SLLogManager.m \
     Sources/SLScriptManager.m \
